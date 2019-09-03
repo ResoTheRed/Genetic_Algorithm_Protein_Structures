@@ -11,8 +11,17 @@ PREV_RIGHT = 9;
 PREV_DOWN = 6;
 PREV_UP = 8;
 
-class chromosome:
-	pass;
+class model:
+	
+	def __init__(self):
+		pass;
+
+
+	#gain a referance to the input data
+	def setup_data(self, file_name):
+		self.data = data_input(file_name);
+		
+
 
 
 class data_input:
@@ -70,8 +79,8 @@ class data_input:
 			
 			if len(temp) == self.chromosome_length[i-1]:
 				pop["Seq"+str(i)] = temp;
-				print(str(len(temp))+":"+str(self.chromosome_length[i-1]));
 				print("Random attemps: "+str(tries));
+				print(str(temp));
 				i+=1;
 				tries = 0;
 			
@@ -101,6 +110,7 @@ class data_input:
 					temp[location] = seq_dict[k];
 					previous = location;
 					break;
+
 			#if a node cannot be placed, scrap order and start over
 			if bad_layout:
 				break;
@@ -146,7 +156,7 @@ class data_input:
 		return temp;
 
 
-di = data_input("Input.txt");
+#di = data_input("Input.txt");
 
 """
 location and sequence
