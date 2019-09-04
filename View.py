@@ -21,7 +21,7 @@ class view:
 		tk.Label(text="Protein Structure").grid(row=1, stick='w');
 		#file name input field
 		self.file_name_entry = Entry(self.master, width=20);
-		self.file_name_entry.insert(0,"Input.txt");
+		self.file_name_entry.insert(0,"input2.txt");
 		self.file_name_entry.grid(row=0,column=1);
 		#custom structure input field
 		self.custom_struct_entry = Entry(self.master, width=20);
@@ -37,7 +37,7 @@ class view:
 		name = self.file_name_entry.get();
 		self.vc.load_file(name);
 		#update the output display
-		self.vc.
+		self.textbox_display(1)
 	
 	#calls to to load in a custom protein structure based on inputs
 	def update_custom_struct(self):
@@ -49,16 +49,10 @@ class view:
 		self.canvas = Canvas(self.master, width=self.canvas_size, height=self.canvas_size);
 		self.canvas.grid(row=5, column=0, columnspan=10, rowspan=10);
 		self.canvas.create_rectangle(0, 0,self.canvas_size,self.canvas_size,width=5.0);
-		temp = {'0,0': 'h', '0,1': 'h', '0,2': 'h', '0,3': 'h', '-1,3': 'h', '-1,4': 'h', '-1,5': 'h', 
-		'0,5': 'h', '0,6': 'h', '0,7': 'h', '-1,7': 'h', '-1,8': 'h', '-2,8': 'p', '-2,9': 'h', '-2,10': 'p', 
-		'-3,10': 'h', '-4,10': 'p', '-4,11': 'p', '-4,12': 'h', '-4,13': 'h', '-4,14': 'p', '-5,14': 'p', 
-		'-6,14': 'h', '-7,14': 'h', '-7,15': 'p', '-7,16': 'p', '-7,17': 'h', '-7,18': 'p', '-6,18': 'p', '-6,19': 'h', 
-		'-6,20': 'h', '-6,21': 'p', '-7,21': 'p', '-8,21': 'h', '-9,21': 'h', '-10,21': 'p', '-11,21': 'p', '-12,21': 'h', 
-		'-12,22': 'p', '-13,22': 'p', '-13,23': 'h', '-13,24': 'h', '-13,25': 'p', '-12,25': 'p', '-11,25': 'h', 
-		'-11,26': 'h', '-11,27': 'p', '-10,27': 'p', '-10,28': 'h', '-11,28': 'p', '-11,29': 'h', '-11,30': 'p', 
-		'-11,31': 'h', '-12,31': 'h', '-13,31': 'h', '-13,32': 'h', '-12,32': 'h', '-11,32': 'h', '-11,33': 'h', '-12,33': 'h', 
-		'-12,34': 'h', '-12,35': 'h', '-12,36': 'h', '-12,37': 'h'}
-		self.draw_protein_structure(temp)
+		
+	# clears the canvas for the next display
+	def clear_canvas(self):
+		self.canvas.delete("all");
 
 	# display the graphics for the output_display and control buttons
 	def fitness_displays(self):
@@ -69,14 +63,50 @@ class view:
 		#controling buttons
 		solve_btn = tk.Button(self.master, text="Run Algorithm", width=18, command=self.test);
 		solve_btn.grid(row=0, column=5);
-		next_btn = tk.Button(self.master, text="Next", width=18, command=self.test);
+		next_btn = tk.Button(self.master, text="Next", width=18, command=self.next);
 		next_btn.grid(row=1, column=5);
-		previous_btn = tk.Button(self.master, text="Previous", width=18, command=self.test);
-		previous_btn.grid(row=2,column=5); 
+		previous_btn = tk.Button(self.master, text="Previous", width=18, command=self.prev);
+		previous_btn.grid(row=2,column=5);
 
-	# next and previous button logic
-	def next_prev(self, dir):
-		if
+	# display the data for the textbox display based on an index
+	# index starts at 1 and should end at self.vc.pop_size
+	def textbox_display(self, index):
+		# clear textbox
+		self.output_display.delete(1.0, END);
+		# get data from the view controller
+		string = self.vc.display_data(index-1);
+		self.output_display.insert(tk.END, string);
+		#draw the structure to lthe canvas
+		temp = self.vc.get_structure(index);
+		self.draw_protein_structure(temp);
+		self.index = 1;
+
+	# next button logic: changes the textbox display into displaying
+	# the next chromosome statistics in the  population
+	def next(self):
+		# global index;
+		# move to the next index of data to display
+		self.index+=1;
+		print("next: "+str(self.index))
+		#clear canvas
+		self.clear_canvas();
+		# write to screen 
+		self.textbox_display(self.index);
+
+	# prev button logic: changes the textbox display into displaying
+	# the previous chromosome statistics in the  population
+	def prev(self):
+		# move to the next index of data to display
+		self.index -= 1;
+		if self.index < 1:
+			self.index = self.vc.pop_size;
+		print("prev: "+str(self.index)+ " pop: "+str(self.vc.pop_size));
+		#clear canvas
+		self.clear_canvas();
+		# write to screen 
+		self.textbox_display(self.index);
+
+
 
 	def test(self):
 		print("Push the button.");

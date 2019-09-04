@@ -20,8 +20,6 @@ class model:
 	#gain a referance to the input data
 	def setup_data(self, file_name):
 		self.data = data_input(file_name);
-		
-
 
 
 class data_input:
@@ -81,9 +79,10 @@ class data_input:
 			if len(temp) == self.chromosome_length[i-1]:
 				pop["Seq"+str(i)] = temp;
 				print("Random attemps: "+str(tries));
-				print(str(temp));
+				# print(str(temp));
 				i+=1;
 				tries = 0;
+		print(str(pop));
 		return pop;
 			
 
