@@ -13,9 +13,9 @@ PREV_UP = 8;
 
 class model:
 	
+	#constructor
 	def __init__(self):
 		pass;
-
 
 	#gain a referance to the input data
 	def setup_data(self, file_name):
@@ -37,6 +37,7 @@ class data_input:
 	# pull the data from the file and return it in a dictionary
 	# Seq1: {"0":"h", "1","p"}
 	# Fitness1: -9
+	# count starts at 1
 	def unpack_from_file(self, file_name):
 		#variables
 		pop = {};
@@ -83,7 +84,7 @@ class data_input:
 				print(str(temp));
 				i+=1;
 				tries = 0;
-			
+		return pop;
 			
 
 	#set locations to each elements in a chromosome
