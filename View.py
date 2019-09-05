@@ -8,33 +8,64 @@ class view:
 		self.master = Tk();
 		self.master.title("Genetic Algorithm");
 		self.vc = view_controller;
+		self.display_index = 1;
+		self.define_canvas_vars();
 		self.set_canvas()
 		self.set_input_fields();
+		self.setup_loading_bar();
 		self.fitness_displays();
 		tk.mainloop();
+
+	# setting variables for the canvas displays
+	def define_canvas_vars(self):
+		self.canvas_size = 750;
+		self.canvas_bg = "#f9f9f9";
+		self.loading_bar_width = 330;
+		self.loading_bar_height = 30;
+		self.loading_bar_bg = "#f9f9f9";
+		self.loading_block_color = "#70b3c2";
 
 
 	#set input fields and submit button to run file
 	def set_input_fields(self):
+		#title
+		tk.Label(text="Genetic Base Structural Search", font=("Helvetica",  26, "bold")).grid(row=0, 
+			columnspan=6, sticky="n",pady=10);
 		#input fields
-		tk.Label(text="File Name").grid(row=0, stick='w');
-		tk.Label(text="Protein Structure").grid(row=1, stick='w');
+		tk.Label(text="File Name").grid(row=1, stick='nsew');
+		tk.Label(text="Protein Structure").grid(row=2, stick='nsew');
 		#file name input field
 		self.file_name_entry = Entry(self.master, width=20);
 		self.file_name_entry.insert(0,"input2.txt");
-		self.file_name_entry.grid(row=0,column=1);
+		self.file_name_entry.grid(row=1,column=1);
 		#custom structure input field
 		self.custom_struct_entry = Entry(self.master, width=20);
-		self.custom_struct_entry.grid(row=1,column=1);
+		self.custom_struct_entry.grid(row=2,column=1);
 		#submition buttons
-		self.load_file_btn = tk.Button(self.master, text="Load File Data", width=18, command=self.update_file_name)
-		self.load_file_btn.grid(row=0,column=3);
-		self.load_custom_btn = tk.Button(self.master, text="Load Custom", width= 18, command=self.update_custom_struct);
-		self.load_custom_btn.grid(row=1, column=3);
+		self.load_file_btn = tk.Button(self.master, text="Load File Data", width=15, 
+			command=self.update_file_name)
+		self.load_file_btn.grid(row=1,column=3, padx=15);
+		self.load_custom_btn = tk.Button(self.master, text="Load Custom", width= 15, 
+			command=self.update_custom_struct);
+		self.load_custom_btn.grid(row=2, column=3, padx=15);
+
+	#set up the graphics for the loading bar
+	def setup_loading_bar(self):
+		tk.Label(text="Done").grid(row=3,stick='nsew');
+		self.loading_canvas = Canvas(self.master, width=self.loading_bar_width, 
+			height=self.loading_bar_height, bg=self.loading_bar_bg);
+		self.loading_canvas.grid(row=3, column=1, columnspan=3, sticky='w');
+		self.loading_canvas.create_rectangle(0,0,self.loading_bar_width,
+			self.loading_bar_height,width=5.0)
+		
 
 	#calls to view_controller to load in data from a given file name
 	def update_file_name(self):
+		#get name from entry box
 		name = self.file_name_entry.get();
+		#clear the canvas for next input
+		self.clear_canvas();
+		# get data from view controller
 		self.vc.load_file(name);
 		#update the output display
 		self.textbox_display(1)
@@ -45,28 +76,28 @@ class view:
 
 	#set up the canvas that holds the visual for the protien structures
 	def set_canvas(self):
-		self.canvas_size = 896;
-		self.canvas = Canvas(self.master, width=self.canvas_size, height=self.canvas_size);
-		self.canvas.grid(row=5, column=0, columnspan=10, rowspan=10);
+		self.canvas = Canvas(self.master, width=self.canvas_size, height=self.canvas_size, bg=self.canvas_bg);
+		self.canvas.grid(row=4, column=0, columnspan=6, rowspan=6, pady=15);
 		self.canvas.create_rectangle(0, 0,self.canvas_size,self.canvas_size,width=5.0);
 		
 	# clears the canvas for the next display
 	def clear_canvas(self):
 		self.canvas.delete("all");
+		self.canvas.create_rectangle(0, 0,self.canvas_size,self.canvas_size,width=5.0);
 
 	# display the graphics for the output_display and control buttons
 	def fitness_displays(self):
 		#text box display
 		self.output_display = tk.Text(self.master,height=4,width=25);
-		self.output_display.grid(row=0, column=4, rowspan=5, stick="nw");
+		self.output_display.grid(row=1, column=4, rowspan=2, stick="nw");
 		scroll = tk.Scrollbar(self.master);
 		#controling buttons
-		solve_btn = tk.Button(self.master, text="Run Algorithm", width=18, command=self.test);
-		solve_btn.grid(row=0, column=5);
-		next_btn = tk.Button(self.master, text="Next", width=18, command=self.next);
-		next_btn.grid(row=1, column=5);
-		previous_btn = tk.Button(self.master, text="Previous", width=18, command=self.prev);
-		previous_btn.grid(row=2,column=5);
+		solve_btn = tk.Button(self.master, text="Run Algorithm", width=14, command=self.test);
+		solve_btn.grid(row=1, column=5, padx=15,);
+		next_btn = tk.Button(self.master, text="Next", width=14, command=self.next);
+		next_btn.grid(row=2, column=5, padx=15,);
+		previous_btn = tk.Button(self.master, text="Previous", width=14, command=self.prev);
+		previous_btn.grid(row=3,column=5, padx=15,);
 
 	# display the data for the textbox display based on an index
 	# index starts at 1 and should end at self.vc.pop_size
@@ -79,32 +110,28 @@ class view:
 		#draw the structure to lthe canvas
 		temp = self.vc.get_structure(index);
 		self.draw_protein_structure(temp);
-		self.index = 1;
+		
 
 	# next button logic: changes the textbox display into displaying
 	# the next chromosome statistics in the  population
 	def next(self):
 		# global index;
 		# move to the next index of data to display
-		self.index+=1;
-		print("next: "+str(self.index))
+		self.display_index+=1;
 		#clear canvas
 		self.clear_canvas();
 		# write to screen 
-		self.textbox_display(self.index);
+		self.textbox_display(self.display_index);
 
 	# prev button logic: changes the textbox display into displaying
 	# the previous chromosome statistics in the  population
 	def prev(self):
 		# move to the next index of data to display
-		self.index -= 1;
-		if self.index < 1:
-			self.index = self.vc.pop_size;
-		print("prev: "+str(self.index)+ " pop: "+str(self.vc.pop_size));
+		self.display_index -= 1;
 		#clear canvas
 		self.clear_canvas();
 		# write to screen 
-		self.textbox_display(self.index);
+		self.textbox_display(self.display_index);
 
 
 

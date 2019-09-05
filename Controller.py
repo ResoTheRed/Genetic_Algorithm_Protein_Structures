@@ -14,7 +14,7 @@ class view_controller:
 
 	# package data to send to view
 	def prep_data_for_view(self):
-		self.pop_size += self.model.data.pop_size;
+		self.pop_size = self.model.data.pop_size;
 		self.fitness = list();
 		self.length = list();
 		for i in range(self.pop_size):
@@ -28,7 +28,8 @@ class view_controller:
 		index = index%self.pop_size;
 		string =" ";
 		try:
-			string = self.length[index]+"\n";
+			string = "~Chromosome Stats~\n"
+			string += self.length[index]+"\n";
 			string += self.fitness[index]+"\n";
 			string += "Chromosome: "+str(index+1)+" of "+str(self.pop_size)
 		except IndexError:
@@ -39,7 +40,10 @@ class view_controller:
 	def get_structure(self, index):
 		index = (index%self.pop_size)+1;
 		#needs exception handling here
-		return self.model.data.chromosomes["Seq"+str(index)];
+		try:
+			return self.model.data.chromosomes["Seq"+str(index)];
+		except KeyError:
+			pass;
 
 
 		

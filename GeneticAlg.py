@@ -15,22 +15,33 @@ class model:
 	
 	#constructor
 	def __init__(self):
+		self.data = None;
 		pass;
 
 	#gain a referance to the input data
 	def setup_data(self, file_name):
-		self.data = data_input(file_name);
-
+		#check if data object has been create it
+		if self.data is None:
+			self.data = data_input(file_name);
+		else:
+			self.data.clear();
+			self.data.update_data_object(file_name);
 
 class data_input:
 
 	#data_input constructor
 	def __init__(self, file_name):
-		pop = self.unpack_from_file(file_name);
-		self.chromosomes = self.separate_chromosomes(pop);
+		self.update_data_object(file_name);
 		#self.separate_chromosomes(pop);
 
-
+	def update_data_object(self, file_name):
+		pop = self.unpack_from_file(file_name);
+		self.chromosomes = self.separate_chromosomes(pop);
+	
+	#clear out population
+	def clear(self):
+		self.pop_size = 0;
+		self.chromosomes = {};
 
 	# pull the data from the file and return it in a dictionary
 	# Seq1: {"0":"h", "1","p"}
