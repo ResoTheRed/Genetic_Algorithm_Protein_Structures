@@ -16,21 +16,42 @@ class model:
 	#constructor
 	def __init__(self):
 		self.data = None;
-		pass;
+		
+
+	#ge a reference to the view controller
+	def set_view_controller(self, view_controller):
+		self.vc = view_controller;
+
+	# pull the population size 
+	def set_pop_size(self, file_name):
+		fh = open(file_name, "r");
+		line = fh.readline();
+		line.replace("\n","");
+		arr = line.split(" ");
+		self.vc.set_pop_size(int(arr[2]));
+		fh.close();
 
 	#gain a referance to the input data
 	def setup_data(self, file_name):
 		#check if data object has been create it
+		self.set_pop_size(file_name);
 		if self.data is None:
-			self.data = data_input(file_name);
+			self.data = data_input(self, file_name);
 		else:
 			self.data.clear();
 			self.data.update_data_object(file_name);
 
+	# create a way for the model logic objects to communicate to the
+	# view controller
+	def signal_view_controller(self, type_):
+		if type_ == "data_object":
+			self.vc.loading_signal_from_data();
+
 class data_input:
 
 	#data_input constructor
-	def __init__(self, file_name):
+	def __init__(self, model, file_name):
+		self.model = model;
 		self.update_data_object(file_name);
 		#self.separate_chromosomes(pop);
 
@@ -86,14 +107,13 @@ class data_input:
 		while i<self.pop_size+1:
 			temp = self.initial_directions( pop["Seq"+str(i)] );
 			tries+=1;
-			
+			#keep chromosome structures that match the original size
 			if len(temp) == self.chromosome_length[i-1]:
 				pop["Seq"+str(i)] = temp;
 				print("Random attemps: "+str(tries));
-				# print(str(temp));
+				self.model.signal_view_controller("data_object");
 				i+=1;
 				tries = 0;
-		print(str(pop));
 		return pop;
 			
 

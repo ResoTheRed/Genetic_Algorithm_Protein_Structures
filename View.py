@@ -1,5 +1,6 @@
 import tkinter as tk;
 from tkinter import *;
+from tkinter.ttk import *;
 
 
 class view:
@@ -8,6 +9,7 @@ class view:
 		self.master = Tk();
 		self.master.title("Genetic Algorithm");
 		self.vc = view_controller;
+		self.vc.set_view(self);
 		self.display_index = 1;
 		self.define_canvas_vars();
 		self.set_canvas()
@@ -20,8 +22,7 @@ class view:
 	def define_canvas_vars(self):
 		self.canvas_size = 750;
 		self.canvas_bg = "#f9f9f9";
-		self.loading_bar_width = 330;
-		self.loading_bar_height = 30;
+		self.loading_bar_length = 330;
 		self.loading_bar_bg = "#f9f9f9";
 		self.loading_block_color = "#70b3c2";
 
@@ -51,12 +52,13 @@ class view:
 
 	#set up the graphics for the loading bar
 	def setup_loading_bar(self):
-		tk.Label(text="Done").grid(row=3,stick='nsew');
-		self.loading_canvas = Canvas(self.master, width=self.loading_bar_width, 
-			height=self.loading_bar_height, bg=self.loading_bar_bg);
-		self.loading_canvas.grid(row=3, column=1, columnspan=3, sticky='w');
-		self.loading_canvas.create_rectangle(0,0,self.loading_bar_width,
-			self.loading_bar_height,width=5.0)
+		self.load_text = tk.StringVar();
+		self.load_text.set("Done");
+		tk.Label(self.master, textvariable=self.load_text).grid(row=3,stick='nsew');
+		self.loading_bar = Progressbar(self.master, orient=HORIZONTAL, length=self.loading_bar_length, 
+			mode="determinate");
+		self.loading_bar.grid(row=3, column=1, columnspan=3, sticky='w');
+		self.load_location = 0;
 		
 
 	#calls to view_controller to load in data from a given file name
@@ -73,6 +75,30 @@ class view:
 	#calls to to load in a custom protein structure based on inputs
 	def update_custom_struct(self):
 		return self.custom_struct.get();
+
+	# fill in loading bar based on chunk size
+	def update_loading_bar(self, chunk, loc):
+		self.loading_bar['value'] += chunk;
+		print("Load bar total: "+str(self.loading_bar['value']) + " chunk size: "+str(chunk))
+		self.master.update_idletasks();
+
+	# clean the graphics for the loading bar
+	def clear_load_bar(self):
+		self.loading_bar["value"] = 0;
+		self.master.update_idletasks();
+		
+
+	# increment the loading bar based on population size and finished chromosomes
+	def load(self):
+		if self.load_location == 0:
+			self.load_text.set("Working...");
+		self.update_loading_bar(100/self.vc.pop_size,self.load_location);
+		self.load_location += 1;
+		print(str(self.load_location)+" "+str(self.vc.pop_size));
+		if self.load_location >= self.vc.pop_size:
+			self.load_location = 0;
+			self.clear_load_bar();
+			self.load_text.set("Done");
 
 	#set up the canvas that holds the visual for the protien structures
 	def set_canvas(self):

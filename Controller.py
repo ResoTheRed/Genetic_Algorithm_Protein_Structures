@@ -4,7 +4,14 @@ class view_controller:
 
 	def __init__(self):
 		self.model = model();
-		self.pop_size = 0;
+		self.pop_size = 1;
+		self.model.set_view_controller(self);
+
+	def set_view(self, view):
+		self.view = view;
+
+	def set_pop_size(self, size):
+		self.pop_size = size;
 
 	#invoke data processing logic
 	def load_file(self, file_name):
@@ -44,6 +51,11 @@ class view_controller:
 			return self.model.data.chromosomes["Seq"+str(index)];
 		except KeyError:
 			pass;
+
+	def loading_signal_from_data(self):
+		self.view.load();
+
+
 
 
 		
