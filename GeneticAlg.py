@@ -40,6 +40,14 @@ class model:
 		else:
 			self.data.clear();
 			self.data.update_data_object(file_name);
+		#set up fitness
+		self.setup_fitness();
+
+	# give data reference to fitness alg model 
+	def setup_fitness(self):
+		if self.data is None:
+			return;
+		self.fitness(self.data);
 
 	# create a way for the model logic objects to communicate to the
 	# view controller
@@ -48,6 +56,12 @@ class model:
 			self.vc.loading_signal_from_data();
 
 class data_input:
+
+	"""
+	location and sequence
+	0[{"0,0,":'h', "0,1":"p", "1,1":'h'}] # chromosome seq style in dict
+	1[{}]
+	"""
 
 	#data_input constructor
 	def __init__(self, model, file_name):
@@ -187,10 +201,86 @@ class data_input:
 		return temp;
 
 
-#di = data_input("Input.txt");
+class fitness_generator:
+	"""
+		fitness_generator class is responsible for mutating the population
+		gathered from the data_input class, in such a way to find the 
+		patterns for lowest energy
+	"""
+	# def __init__(self, data):
+	# 	#set a reference to the data object
+	# 	self.data = data;
+	# 	self.pop_size = self.data.pop_size;
+	# 	self.old_pop = self.data.chromosomes;
+	# 	self.new_pop = None;
 
-"""
-location and sequence
-0[{"0,0,":'h', "0,1":"p", "1,1":'h'}]
-1[{}]
-"""
+	def __init__(self, pop):
+		conn = self.track_connections(pop);
+		fit = self.calculate_fitness(pop, conn);
+		print("Fitness: "+str(fit));
+
+	# create 100 mutations of sequence 
+	def generate_initial_pop(self):
+		pass;
+
+	def track_connections(self, pop):
+		connections = list();
+		# establish connections using index as an order
+		# this will be the same for each mutation
+		for k,v in pop.items():
+			connections.append(k);
+		return connections;
+
+	# calculate the fitness of the passed in poulation
+	# if  value == p then check (+1,0), (-1,0), (0,+1), (0,-1) 
+	# relative to the current location if the value at any of 
+	# these == p and are not connected (connection list) then
+	# add 1 to fitness.  Finally divide fitness by 2 to account 
+	# for duplicate adjacencies
+	def calculate_fitness(self, pop, conn):
+		# pop uses one sequence from the original data
+		count = 0;
+		fit = 0;
+		print(str(len(conn)));
+		print(str(len(pop)));
+		# check for connections
+		for k,v in pop.items():
+			if v == "p":
+				arr = k.split(",");
+				# check locations up down left right for adjacency
+				fit += self.match_locations((str(int(arr[0]))+","+str(int(arr[1])+1)), pop, k, count, conn);
+				fit += self.match_locations((str(int(arr[0]))+","+str(int(arr[1])-1)), pop, k, count, conn);
+				fit += self.match_locations((str(int(arr[0])-1)+","+str(int(arr[1]))), pop, k, count, conn);
+				fit += self.match_locations((str(int(arr[0])+1)+","+str(int(arr[1]))), pop, k, count, conn);
+				print("Fit: "+str(fit)+" count: "+str(count))
+			count+=1;
+		#return fitness to compare to previous fitness 
+		return int(fit/2);
+
+	# directly index heap for O(1) look up
+	def match_locations(self, direct, pop, k, count, connections):
+		fitness = 0;
+
+		try:
+			# location exist in chromosome and == p
+			if pop[direct] == "p": 
+				# if the index+1 is in bounds and the direction is not directly connected
+				if count != 0 and count < len(connections)-1 and connections[count+1] != direct:
+					fitness+=1;
+				# if the index-1 is in bounds and the direction is not directly connected
+				elif count != len(connections)-1 and count>0 and connections[count-1] != direct:
+					fitness+=1;
+		except KeyError:
+			pass;
+		return fitness;
+
+# should be fitness -9;  Example from slides
+temp = {"0,0":"p", "1,0":"h", "1,1":"p", "1,2":"h", "0,2":"h", "0,1":"p", "-1,1":"p", "-1,2":"h", "-2,2":"p", "-3,2":"h", "-3,1":"h",
+			"-2,1":"p", "-2,0":"h", "-1,0":"p", "-1,-1":"p", "-2,-1":"h", "-2,-2":"h", "-1,-2":"p", "0,-2":"h", "0,-1":"p"};
+
+f = fitness_generator(temp);
+
+
+
+
+
