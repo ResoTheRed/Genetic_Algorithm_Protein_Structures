@@ -207,21 +207,22 @@ class fitness_generator:
 		gathered from the data_input class, in such a way to find the 
 		patterns for lowest energy
 	"""
-	# def __init__(self, data):
-	# 	#set a reference to the data object
-	# 	self.data = data;
-	# 	self.pop_size = self.data.pop_size;
-	# 	self.old_pop = self.data.chromosomes;
-	# 	self.new_pop = None;
+	def __init__(self, data):
+		#set a reference to the data object
+		self.data = data;
+		self.pop_size = self.data.pop_size;
+		self.old_pop = self.data.chromosomes;
+		self.new_pop = None;
 
-	def __init__(self, pop):
-		conn = self.track_connections(pop);
-		fit = self.calculate_fitness(pop, conn);
-		print("Fitness: "+str(fit));
+	# def __init__(self, pop):
+	# 	conn = self.track_connections(pop);
+	# 	fit = self.calculate_fitness(pop, conn);
+	# 	print("Fitness: "+str(fit));
 
-	# create 100 mutations of sequence 
-	def generate_initial_pop(self):
-		pass;
+	# create a given number of sequence randomly generated chromosomes from one seed 
+	def generate_initial_pop(self, seed, pop_total):
+		for
+
 
 	def track_connections(self, pop):
 		connections = list();
@@ -245,7 +246,7 @@ class fitness_generator:
 		print(str(len(pop)));
 		# check for connections
 		for k,v in pop.items():
-			if v == "p":
+			if v == "h":
 				arr = k.split(",");
 				# check locations up down left right for adjacency
 				fit += self.match_locations((str(int(arr[0]))+","+str(int(arr[1])+1)), pop, k, count, conn);
@@ -262,21 +263,27 @@ class fitness_generator:
 		fitness = 0;
 
 		try:
+			# print("count: "+str(count)+" loc: "+direct+" v at loc: "+pop[direct])
 			# location exist in chromosome and == p
-			if pop[direct] == "p": 
-				# if the index+1 is in bounds and the direction is not directly connected
-				if count != 0 and count < len(connections)-1 and connections[count+1] != direct:
+			if pop[direct] == "h":
+				if count == 0 and connections[count+1] != direct:
 					fitness+=1;
-				# if the index-1 is in bounds and the direction is not directly connected
-				elif count != len(connections)-1 and count>0 and connections[count-1] != direct:
+					# if the index+1 is in bounds and the direction is not directly connected
+				elif count == len(connections)-1 and connections[count-1] != direct:
+					fitness+=1;
+				elif connections[count+1] != direct and connections[count-1] != direct:
 					fitness+=1;
 		except KeyError:
 			pass;
+		print(str(fitness));
 		return fitness;
 
+
+
+
 # should be fitness -9;  Example from slides
-temp = {"0,0":"p", "1,0":"h", "1,1":"p", "1,2":"h", "0,2":"h", "0,1":"p", "-1,1":"p", "-1,2":"h", "-2,2":"p", "-3,2":"h", "-3,1":"h",
-			"-2,1":"p", "-2,0":"h", "-1,0":"p", "-1,-1":"p", "-2,-1":"h", "-2,-2":"h", "-1,-2":"p", "0,-2":"h", "0,-1":"p"};
+temp = {"0,0":"h", "1,0":"p", "1,1":"h", "1,2":"p", "0,2":"p", "0,1":"h", "-1,1":"h", "-1,2":"p", "-2,2":"h", "-3,2":"p", "-3,1":"p",
+			"-2,1":"h", "-2,0":"p", "-1,0":"h", "-1,-1":"h", "-2,-1":"p", "-2,-2":"p", "-1,-2":"h", "0,-2":"p", "0,-1":"h"};
 
 f = fitness_generator(temp);
 
