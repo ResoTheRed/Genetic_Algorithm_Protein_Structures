@@ -94,7 +94,6 @@ class view:
 			self.load_text.set("Working...");
 		self.update_loading_bar(100/self.vc.pop_size,self.load_location);
 		self.load_location += 1;
-		print(str(self.load_location)+" "+str(self.vc.pop_size));
 		if self.load_location >= self.vc.pop_size:
 			self.load_location = 0;
 			self.clear_load_bar();
@@ -161,7 +160,7 @@ class view:
 
 
 	def find_fitness(self,):
-		print("in view: "+str(self.display_index));
+		# print("in view: "+str(self.display_index));
 		self.vc.find_fitness(self.display_index);
 
 

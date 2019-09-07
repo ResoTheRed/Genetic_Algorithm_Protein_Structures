@@ -55,6 +55,8 @@ class model:
 		#pass reference to the targeting fitness level
 		self.fitness.set_target_fitness(self.data.target_fit[index]);
 		self.set_init_pop(index);
+		self.fitness.run_generations();
+
 
 	def set_init_pop(self, index):
 		if self.data != None:
@@ -165,7 +167,6 @@ class data_input:
 				self.model.signal_view_controller("data_object");
 				i+=1;
 				tries = 0;
-				print(str(temp));
 		return pop;
 
 
@@ -288,6 +289,14 @@ class fitness_generator:
 		self.max_fit = 0;
 		self.target_fit = 0;
 
+	# reset variables for next use
+	def reset(self):
+		self.pop1 = None;
+		self.pop2 = None;
+		self.generation = 0;
+		self.max_fit = 0;
+		self.target_fit = 0;
+
 	# get initial pop in form of list of dictionaries
 	# pop[0] {"fit":"0","0,0":"h","0,1":"p"...}
 	def set_init_pop(self, pop):
@@ -300,20 +309,80 @@ class fitness_generator:
 	def write_initial_pop_to_file(self):
 		pass;
 
+	def run_generations(self):
+		# find the fitness of each chromosome
+		self.rank_generation();
+		# Sort fitness from high to low
+		self.sort_generation();
+		# move pop1 into pop2
+		# cross over 80% of pop (160)
+		# self.crossover_generation();
+		# fill 10% with elite pop and 10% random selection
+		self.random_selection();
+		# mutate random selection from 5%-50%
+		# self.mutate_generation();
+		# self.generation +=1;
+		self.print_to_console();
+		
+
 	# rank each
 	def rank_generation(self):
 		for i in range(len(self.pop1)):
-			fit =self.calculate_fitness(self.pop1[i]);
+			conn = self.track_connections(self.pop1[i])
+			fit =self.calculate_fitness(self.pop1[i],conn);
 			self.pop1[i]["fit"] =fit;
-
+			#examine exit fitness levels
 			if fit > self.max_fit:
 				self.max_fit = fit;
 			if self.max_fit >= self.target_fit:
 				# exit calculations and move target structure to top
 				pass;
 
+	# sort generation from highest to lowest fitness
+	def sort_generation(self):
+		count = 0;
+		#bubble sort for ease of coding: refactor if needed
+		for i in range(len(self.pop1)):
+			if i != len(self.pop1)-1:
+				if int(self.pop1[i]["fit"]) < int(self.pop1[i+1]["fit"]):
+					temp = self.pop1[i+1]["fit"];
+					self.pop1[i+1]["fit"] = self.pop1[i]["fit"]
+					self.pop1[i]["fit"] = temp;
+					count+=1;
+		if count > 0:
+			self.sort_generation();
+
+	# direclty copy chromosomes from pop1 to pop2
+	def random_selection(self):
+		#insert top 10% of chromosomes into pop2
+		for i in range(int(len(self.pop1)*0.1)):
+			self.pop2.append(self.pop1[i]);
+		# randomly insert 10% of chromosomes
+		for j in range(int(len(self.pop1)*0.1)):
+			ran = r.randint(0,len(self.pop1)-1);
+			self.pop2.append(self.pop1[ran]);
+
+	# crossover 80% of chromosomes
+	def crossover_generation(self):
+		for i in range(int(len(self.pop1)*0.8)):
+			ran1 = r.randint(0,len(self.pop1)-1);
+			ran2 = r.randint(0,len(self.pop1)-1);
+			#gain 2 random unique indexes
+			if ran1 != ran2:
+				chrom = self.crossover(self.pop1[ran1], self.pop1[ran2]);
+				pop2.append(chrom);
+
+	def crossover(self, c1, c2):
+		pass;
 
 
+	# used for debugging
+	def print_to_console(self):
+		for i in range(len(self.pop1)):
+			print(self.pop1[i]);
+
+
+	# create a temp list to house each chromosomes path
 	def track_connections(self, pop):
 		connections = list();
 		# establish connections using index as an order
@@ -341,7 +410,7 @@ class fitness_generator:
 				fit += self.match_locations((str(int(arr[0]))+","+str(int(arr[1])-1)), pop, k, count, conn);
 				fit += self.match_locations((str(int(arr[0])-1)+","+str(int(arr[1]))), pop, k, count, conn);
 				fit += self.match_locations((str(int(arr[0])+1)+","+str(int(arr[1]))), pop, k, count, conn);
-				print("Fit: "+str(fit)+" count: "+str(count))
+				# print("Fit: "+str(fit)+" count: "+str(count))
 			count+=1;
 		#return fitness to compare to previous fitness 
 		return int(fit/2);
