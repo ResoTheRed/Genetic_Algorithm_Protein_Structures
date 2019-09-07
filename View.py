@@ -79,7 +79,7 @@ class view:
 	# fill in loading bar based on chunk size
 	def update_loading_bar(self, chunk, loc):
 		self.loading_bar['value'] += chunk;
-		print("Load bar total: "+str(self.loading_bar['value']) + " chunk size: "+str(chunk))
+		# print("Load bar total: "+str(self.loading_bar['value']) + " chunk size: "+str(chunk))
 		self.master.update_idletasks();
 
 	# clean the graphics for the loading bar
@@ -116,9 +116,8 @@ class view:
 		#text box display
 		self.output_display = tk.Text(self.master,height=4,width=25);
 		self.output_display.grid(row=1, column=4, rowspan=2, stick="nw");
-		scroll = tk.Scrollbar(self.master);
 		#controling buttons
-		solve_btn = tk.Button(self.master, text="Run Algorithm", width=14, command=self.test);
+		solve_btn = tk.Button(self.master, text="Run Algorithm", width=14, command=self.find_fitness);
 		solve_btn.grid(row=1, column=5, padx=15,);
 		next_btn = tk.Button(self.master, text="Next", width=14, command=self.next);
 		next_btn.grid(row=2, column=5, padx=15,);
@@ -161,8 +160,9 @@ class view:
 
 
 
-	def test(self):
-		print("Push the button.");
+	def find_fitness(self,):
+		print("in view: "+str(self.display_index));
+		self.vc.find_fitness(self.display_index);
 
 
 

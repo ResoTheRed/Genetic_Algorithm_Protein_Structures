@@ -16,6 +16,7 @@ class model:
 	#constructor
 	def __init__(self):
 		self.data = None;
+		self.default_pop_size = 200;
 		
 
 	#ge a reference to the view controller
@@ -47,7 +48,18 @@ class model:
 	def setup_fitness(self):
 		if self.data is None:
 			return;
-		self.fitness(self.data);
+		self.fitness = fitness_generator(self.data);
+
+	# collection of methods to call to find the best fitness
+	def find_fitness(self, index):
+		#pass reference to the targeting fitness level
+		self.fitness.set_target_fitness(self.data.target_fit[index]);
+		self.set_init_pop(index);
+
+	def set_init_pop(self, index):
+		if self.data != None:
+			pop = self.data.generate_pop(index, self.default_pop_size);
+			self.fitness.set_init_pop(pop);
 
 	# create a way for the model logic objects to communicate to the
 	# view controller
@@ -65,18 +77,22 @@ class data_input:
 
 	#data_input constructor
 	def __init__(self, model, file_name):
+		self.seeds = list();
+		self.target_fit = list();
 		self.model = model;
 		self.update_data_object(file_name);
 		#self.separate_chromosomes(pop);
 
 	def update_data_object(self, file_name):
 		pop = self.unpack_from_file(file_name);
-		self.chromosomes = self.separate_chromosomes(pop);
+		self.chromosomes = self.separate_chromosomes(pop, self.pop_size+1);
 	
 	#clear out population
 	def clear(self):
 		self.pop_size = 0;
 		self.chromosomes = {};
+		self.seeds = list();
+		self.target_fit = list();
 
 	# pull the data from the file and return it in a dictionary
 	# Seq1: {"0":"h", "1","p"}
@@ -98,9 +114,11 @@ class data_input:
 			elif arr[0] == "Seq":
 				arr[2] = arr[2].replace("\n","");
 				self.chromosome_length.append(len(arr[2]));
-				pop[arr[0] + str(count)] = self.parse_seq(list(arr[2]));	
+				pop[arr[0] + str(count)] = self.parse_seq(list(arr[2]));
+				self.seeds.append(pop[arr[0] + str(count)]);
 			elif arr[0] == "Fitness":
 				pop[arr[0]+str(count)] = arr[2];
+				self.target_fit.append(int(arr[2]));
 				count += 1;
 			line = fh.readline();
 		return pop;
@@ -113,12 +131,12 @@ class data_input:
 		return temp;
 
 	#pass each chromosome sequence for location assignment
-	def separate_chromosomes(self, pop):
+	def separate_chromosomes(self, pop, size):
 		i = 1;
 		tries = 0;
 		#for each chromosome in the population, create initial structure
 		#pass in a dictionary of locations
-		while i<self.pop_size+1:
+		while i<size:
 			temp = self.initial_directions( pop["Seq"+str(i)] );
 			tries+=1;
 			#keep chromosome structures that match the original size
@@ -129,7 +147,27 @@ class data_input:
 				i+=1;
 				tries = 0;
 		return pop;
-			
+
+	# create 200 randomly generated chromosomes from the same seed
+	def generate_pop(self, index, size):
+		seed = self.seeds[index];
+		pop = list();
+		tries = 0;
+		i = 0;
+		while i<size:
+			temp = self.initial_directions(seed);
+			tries+=1;
+
+			if len(temp) == len(seed):
+				temp = {**{"fit":"0"}, **temp }
+				pop.append(temp);
+				print("Member:"+str(i+1)+"Random attemps: "+str(tries));
+				self.model.signal_view_controller("data_object");
+				i+=1;
+				tries = 0;
+				print(str(temp));
+		return pop;
+
 
 	#set locations to each elements in a chromosome
 	def initial_directions(self, seq_dict):
@@ -139,14 +177,16 @@ class data_input:
 		bad_layout = False;
 		for k,v in seq_dict.items():
 		 	#generate the random 4 directions
+			bad_neighborhood = {};
 			dir_list = self.random_four();
 			previous = location; 
-
+			#check for bad areas that will cause dead ends
+			bad_neighborhoods = self.check_neighbors(temp,location);
 			for i in range(len(dir_list)):
 		 		#convert into string location based on randomly generated direction
 				location = self.check_direction(dir_list[i], previous, k);
 		 		#check if location is valid				
-				if location in seq_dict:
+				if location in seq_dict or location in bad_neighborhood:
 					location = previous;
 					if i == len(dir_list):
 						bad_layout = True;
@@ -155,7 +195,6 @@ class data_input:
 					temp[location] = seq_dict[k];
 					previous = location;
 					break;
-
 			#if a node cannot be placed, scrap order and start over
 			if bad_layout:
 				break;
@@ -165,6 +204,50 @@ class data_input:
 		return temp;
 		
 
+	#help minimize bad layouts by checking area for dead ends
+	def check_neighbors(self, pop, start):
+		block = self.increment_directions(start);
+		nb = list();
+		bad_address = {};
+
+		if pop is None:
+			bad_address["0,0"]=0;
+			return bad_adress;
+
+		for i in range(4):
+			nb = self.increment_directions(block[i]);
+			if block[i] in pop:
+				bad_address[block[i]] = 0;
+			# check right, up and down
+			elif i == 0 and self.check_neighborhood(pop,nb[0],nb[2],nb[3]):  #going right
+				bad_address[block[i]] = 0;
+			# check left, up, down
+			elif i == 1 and self.check_neighborhood(pop,nb[1],nb[2],nb[3]):  #going left
+				bad_address[block[i]] = 0;
+			# check up, right, left
+			elif i == 2 and self.check_neighborhood(pop,nb[0],nb[1],nb[2]):  #going up
+				bad_address[block[i]] = 0;
+			# check down, right, left
+			elif i == 3 and self.check_neighborhood(pop,nb[0],nb[1],nb[3]):  #going down
+				bad_address[block[i]] = 0;
+		return bad_address;
+
+	#check 2 spaces out for dead ends
+	def check_neighborhood(self,pop,loc1,loc2,loc3):
+		if loc1 in pop and loc2 in pop and loc3 in pop:
+			return True;
+		return False;
+
+	#returns all four coords from given location as a list
+	#order: right, left, up, down
+	def increment_directions(self, loc):
+		temp = list()
+		a= loc.split(",");
+		temp.append( str(int(a[0])+1)+","+str(a[1]));
+		temp.append( str(int(a[0])-1)+","+str(a[1]));
+		temp.append( str(a[0])+","+str(int(a[1])+1)); 
+		temp.append( str(a[0])+","+str(int(a[1])-1));
+		return temp;
 
 	#return a location based on direction chosen
 	#param prev as a string holds last location ["0,0"] 
@@ -185,19 +268,8 @@ class data_input:
 	#generate unique numbers 1 through 4 in a random order
 	#returns the numbers in a list
 	def random_four(self):
-		temp = list();
-		counter = 0;
-		while True:
-			temp = [r.randint(1,4),r.randint(1,4),r.randint(1,4),r.randint(1,4)];
-			if temp[1] == temp[2] or temp[1] == temp[3] or temp[1] == temp[0]:
-				counter+=1;
-			if temp[2] == temp[3] or temp[2] == temp[0]:
-				counter+=1;
-			if temp[3] == temp[0]:
-				counter+=1;
-			if counter == 0:
-				break;
-			counter = 0;
+		temp = [1,2,3,4];
+		r.shuffle(temp);
 		return temp;
 
 
@@ -207,21 +279,39 @@ class fitness_generator:
 		gathered from the data_input class, in such a way to find the 
 		patterns for lowest energy
 	"""
-	def __init__(self, data):
+	def __init__(self, data_obj):
 		#set a reference to the data object
-		self.data = data;
-		self.pop_size = self.data.pop_size;
-		self.old_pop = self.data.chromosomes;
-		self.new_pop = None;
+		self.pinnacle = {};
+		self.pop1 = None;
+		self.pop2 = None;
+		self.generation = 0;
+		self.max_fit = 0;
+		self.target_fit = 0;
 
-	# def __init__(self, pop):
-	# 	conn = self.track_connections(pop);
-	# 	fit = self.calculate_fitness(pop, conn);
-	# 	print("Fitness: "+str(fit));
+	# get initial pop in form of list of dictionaries
+	# pop[0] {"fit":"0","0,0":"h","0,1":"p"...}
+	def set_init_pop(self, pop):
+		self.pop1 = pop;
+		
+	def set_target_fitness(self, fit):
+		self.target_fit = fit;
 
 	# create a given number of sequence randomly generated chromosomes from one seed 
-	def generate_initial_pop(self, seed, pop_total):
-		for
+	def write_initial_pop_to_file(self):
+		pass;
+
+	# rank each
+	def rank_generation(self):
+		for i in range(len(self.pop1)):
+			fit =self.calculate_fitness(self.pop1[i]);
+			self.pop1[i]["fit"] =fit;
+
+			if fit > self.max_fit:
+				self.max_fit = fit;
+			if self.max_fit >= self.target_fit:
+				# exit calculations and move target structure to top
+				pass;
+
 
 
 	def track_connections(self, pop):
@@ -242,8 +332,6 @@ class fitness_generator:
 		# pop uses one sequence from the original data
 		count = 0;
 		fit = 0;
-		print(str(len(conn)));
-		print(str(len(pop)));
 		# check for connections
 		for k,v in pop.items():
 			if v == "h":

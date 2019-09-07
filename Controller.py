@@ -55,7 +55,8 @@ class view_controller:
 	def loading_signal_from_data(self):
 		self.view.load();
 
-
+	def find_fitness(self, index):
+		self.model.find_fitness(index);
 
 
 		
