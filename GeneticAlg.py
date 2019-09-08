@@ -288,6 +288,7 @@ class fitness_generator:
 		self.generation = 0;
 		self.max_fit = 0;
 		self.target_fit = 0;
+		self.chrom_size = 0
 
 	# reset variables for next use
 	def reset(self):
@@ -301,6 +302,7 @@ class fitness_generator:
 	# pop[0] {"fit":"0","0,0":"h","0,1":"p"...}
 	def set_init_pop(self, pop):
 		self.pop1 = pop;
+		self.chrom_size = len(pop);
 		
 	def set_target_fitness(self, fit):
 		self.target_fit = fit;
@@ -369,11 +371,145 @@ class fitness_generator:
 			ran2 = r.randint(0,len(self.pop1)-1);
 			#gain 2 random unique indexes
 			if ran1 != ran2:
-				chrom = self.crossover(self.pop1[ran1], self.pop1[ran2]);
-				pop2.append(chrom);
+				cross_index = r.randint(len(self.pop[ran2])-1);
+				self.crossover(self.pop1[ran1], self.pop1[ran2], cross_index);
 
-	def crossover(self, c1, c2):
+	# break each chromosome into parts for crossing over
+	def crossover(self, chrom1, chrom2,cross_index):
+		# seg_a = list(); #hold the moving segment for cross over
+		# body_a = {};  #hold the static section for cross over
+		# seg_b = list(); #hold the moving segmen for 2nd chrom
+		# body_b ={}; #hold the static section for 2nd chrom
+		seg_a, body_a, key_a = self.split_chormosome(chrom1, cross_index);
+		seg_b, body_b, key_b = self.split_chormosome(chrom2, cross_index);
+		chrom1 = self.combine_chrom_segments(seg_a, body_b, key_b);
+		chrom2 = self.combine_chrom_segments(seg_b, body_a, key_a);
+
+	#split a chromosome into 2 pieces
+	#returns segment in form of 0 ["0,0,h","0,1,p"]
+	def split_chormosome(self, chrom, cross_index):
+		seg_temp = list();
+		body_temp = {};
+		key = "";
+		count = 0;
+		for k,v in chrom:
+			# load the smaller sections exclude fit attribute
+			if count <= cross_index and k != "fit":
+				seg_temp.append(k+","+v):
+			elif k != "fit":
+				body_body[k] = v;
+				if count == cross_index+1:
+					key = k;
+			count+=1;
+		return seg_temp, body_temp, key;
+
+	# join a chromosome segment and body together to create a new chromosome
+	def combine_chrom_segments(self, seg, body, key):
+		# set the connection to be a random direction
+		merged = None;
+		directions = [1,2,3,4];
+		r.shuffle(directions);
+		start = self.move_rand_loc(key, directions[0]);
+		compatible = False;
+		merged = {};
+		x,y = self.find_seg_body_distance(seg, start);
+		# update each location in segment by distance in new x,y coord
+		temp_seg = self.set_seg_locations(seg, x, y);
+		#check if new location overlaps a
+		combined = self.check_overlap(temp_seg, body);
+		if combined:
+			merged = self.merge_sections(temp_seg, body);
+		else:
+			for i in range(1,4):
+				#change to next direction in the list
+				start = self.move_rand_loc(key, direction[i]);
+				#find the new coordinate distance
+				x,y = self.find_seg_body_distance(seg, start);
+				#set temp to new coordinates 
+				temp_seg = self.set_seg_locations(seg,x,y);
+				#rotate coord 90 degrees right
+				temp_seg_rotate = self.self.rotate_seg(temp_seg,rotate_dir[j]);
+				#check if the new pair can combine without overlap
+				combined = self.check_overlap(temp_seg_rotate, body);
+				if combined:
+					merged = self.merge_sections(temp_seg_rotate, body);
+					break;
+		return merged; 
+
+	def rotate_seg(self, seg, degrees):
 		pass;
+
+	# find the distance to move each x,y in seg based on a starting position
+	def find_seg_body_distance(self, seg, start):
+		# Find the difference in x coord locations from seg to body as var x
+		Ax = int(seg[len(seg)-1][0]);
+		Bx = int(start[0]);
+		x = Ax - Bx;
+		# Find the difference in y coord locations from seg to body as var y
+		Ay = int(seg[len(seg)-1][2]);
+		By = int(start[2]);
+		y = Ay - By;
+		return x,y;
+		
+	# change the locations of a list segment by a distance x,y
+	# seg int the form of ["0,0,p","0,1,h",...]	
+	def set_seg_locations(self, seg, x, y):
+		for i in range(len(seg)):
+			arr = seg[i].split(",");
+			seg[i] = str(int(arr[0])+x)+","+str(int(arr[1]+y)) + ","+ seg[i][-1:];
+
+	# check if a segment's elements locations overlap the static body
+	# return true if compatible
+	# seg int the form of ["0,0,p","0,1,h",...]	
+	# body in the form of {"0,0":"h","0,1":"p"...}
+	def check_overlap(self,seg, body):
+		compatible = True;
+		for i in range(len(seg)):
+			# omit the last 2 chars: ',h' or ',p'
+			key = seg[i][:-2];
+			if key in body:
+				compatible = False;
+				break;
+		return compatible;
+
+
+	# merge a compatible segment to a body to make a new chromosome
+	# seg in form: ["0,0,p","0,1,h"...]
+	# body in form: {"0,0":"h","1,0":"p"...}
+	def merge_sections(self, seg, body):
+		chromosome = {};
+		# always insert segment first
+		for i in range(len(seg)):
+			# change to form: {"0,0":"h"}
+			chromosome[seg[i][:-2]] = seg[i][-1:];
+		for k,v in body.itmes():
+			chromosome[k] = v;
+		return chromosome;
+
+
+	def crossover_mutation(self, top, bottom):
+		pass;
+
+
+
+	# returns a new random direction 1: right, 2: left, 3: up, 4: down
+	# loc must be in the form: "0,0"
+	# direction num 1 to 4
+	def move_rand_loc(self, loc, direction=0):
+		if direction == 0:
+			temp = r.randint(4);
+		else:
+			temp = direction;
+		arr = loc.split(",");
+		if temp == 1:
+			loc = str(int(arr[0])+1)+","+str(arr[1]);
+		elif temp == 2:
+			loc = str(int(arr[0])-1)+","+str(arr[1]);
+		elif temp == 3;
+			loc = str(arr[0])+","+str(int(arr[1]+1));
+		else:
+			loc = str(arr[0])+","+str(int(arr[1]-1));
+		return loc;
 
 
 	# used for debugging
