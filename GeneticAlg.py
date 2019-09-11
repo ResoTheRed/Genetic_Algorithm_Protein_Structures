@@ -280,7 +280,7 @@ class fitness_generator:
 		gathered from the data_input class, in such a way to find the 
 		patterns for lowest energy
 	"""
-	def __init__(self, data_obj):
+	def __init__(self):
 		#set a reference to the data object
 		self.pinnacle = {};
 		self.pop1 = None;
@@ -327,7 +327,7 @@ class fitness_generator:
 		self.print_to_console();
 		
 
-	# rank each
+	# rank each chromosome
 	def rank_generation(self):
 		for i in range(len(self.pop1)):
 			conn = self.track_connections(self.pop1[i])
@@ -374,16 +374,25 @@ class fitness_generator:
 				cross_index = r.randint(len(self.pop[ran2])-1);
 				self.crossover(self.pop1[ran1], self.pop1[ran2], cross_index);
 
+	#test method for testing crossover via the console
+	def tester(self, chrom1, chrom2):
+		self.crossover(chrom1, chrom2, 8);
+
+
 	# break each chromosome into parts for crossing over
 	def crossover(self, chrom1, chrom2,cross_index):
-		# seg_a = list(); #hold the moving segment for cross over
-		# body_a = {};  #hold the static section for cross over
-		# seg_b = list(); #hold the moving segmen for 2nd chrom
-		# body_b ={}; #hold the static section for 2nd chrom
 		seg_a, body_a, key_a = self.split_chormosome(chrom1, cross_index);
+		print("seg_a from split_chromosome method:"+str(seg_a))
+		print("body_a from split_chromosome method:"+str(body_a))
+		# print("key_a from split_chromosome method:"+str(key_a))
 		seg_b, body_b, key_b = self.split_chormosome(chrom2, cross_index);
+		print("seg_b from split_chromosome method:"+str(seg_b))
+		print("body_b from split_chromosome method:"+str(body_b))
+		# print("key_b from split_chromosome method:"+str(key_b))
 		chrom1 = self.combine_chrom_segments(seg_a, body_b, key_b);
 		chrom2 = self.combine_chrom_segments(seg_b, body_a, key_a);
+		print("Line 388: crossover is finished. \n"+str(chrom1));
+		print(str(chrom2));
 
 	#split a chromosome into 2 pieces
 	#returns segment in form of 0 ["0,0,h","0,1,p"]
@@ -392,12 +401,12 @@ class fitness_generator:
 		body_temp = {};
 		key = "";
 		count = 0;
-		for k,v in chrom:
+		for k,v in chrom.items():
 			# load the smaller sections exclude fit attribute
 			if count <= cross_index and k != "fit":
-				seg_temp.append(k+","+v):
+				seg_temp.append(k+","+v);
 			elif k != "fit":
-				body_body[k] = v;
+				body_temp[k] = v;
 				if count == cross_index+1:
 					key = k;
 			count+=1;
@@ -409,12 +418,17 @@ class fitness_generator:
 		merged = None;
 		directions = [1,2,3,4];
 		r.shuffle(directions);
+		#start references where the new segment should start from to line up with the correct body
 		start = self.move_rand_loc(key, directions[0]);
+		print("Line 422:  direction: "+str(directions[0])+" key: "+key+" start"+str(start));
 		compatible = False;
 		merged = {};
+		# offset to change segment to to fit with given body
 		x,y = self.find_seg_body_distance(seg, start);
+		print("Line 426: difference in distances "+str(x)+","+str(y));
 		# update each location in segment by distance in new x,y coord
 		temp_seg = self.set_seg_locations(seg, x, y);
+		print("Segment with offset accounted for: "+str(temp_seg));
 		#check if new location overlaps a
 		combined = self.check_overlap(temp_seg, body);
 		if combined:
@@ -422,13 +436,13 @@ class fitness_generator:
 		else:
 			for i in range(1,4):
 				#change to next direction in the list
-				start = self.move_rand_loc(key, direction[i]);
+				start = self.move_rand_loc(key, directions[i]);
 				#find the new coordinate distance
 				x,y = self.find_seg_body_distance(seg, start);
 				#set temp to new coordinates 
 				temp_seg = self.set_seg_locations(seg,x,y);
 				#rotate coord 90 degrees right
-				temp_seg_rotate = self.self.rotate_seg(temp_seg,rotate_dir[j]);
+				temp_seg_rotate = self.rotate_seg(temp_seg);
 				#check if the new pair can combine without overlap
 				combined = self.check_overlap(temp_seg_rotate, body);
 				if combined:
@@ -436,19 +450,191 @@ class fitness_generator:
 					break;
 		return merged; 
 
-	def rotate_seg(self, seg, degrees):
-		pass;
+	# takes in segment list in the form ["0,0,h"...]
+	def rotate_seg(self, seg):	
+		#home direction to be passed to each rotation degree list
+		x = seg[len(seg)-1][:-2];
+		y = x;
+		z = y;
+		# colections of lists to hold other 3 directions 90,180,270 deg turn
+		d1 = [ [x], [y], [z] ];
+		main_dir = self.get_seg_starting_direction(seg);
+		i = len(seg)-1;
+		# iterate through each node in seg backwards.  This is the way the seg connects to the body
+		while i > 0:
+			#pull original values to find the direction
+			next_loc1 = seg[i].split(",");
+			next_loc2 = seg[i-1].split(",");
+			# establish direction based on current and next point
+			if int(next_loc2[0]) > int(next_loc1[0]): 
+				# moving left x2 < x1 <--
+				inner_dir = "east";
+			elif int(next_loc2[1]) > int(next_loc1[1]): 
+				# moving up y2 > y1 
+				inner_dir = "north";
+			elif int(next_loc2[1]) < int(next_loc1[1]): 
+				# moving down y2 < y1
+				inner_dir = "south";
+			else: 
+				#moving eat or positive x
+				inner_dir = "west";
+
+			if main_dir == "east":
+				x,y,z = self.rotate_right(x,y,z,inner_dir);
+			elif main_dir == "west":
+				x,y,z = self.rotate_left(x,y,z,inner_dir);
+			elif main_dir == "north":
+				x,y,z = self.rotate_up(x,y,z,inner_dir);
+			else:
+				x,y,z = self.rotate_down(x,y,z,inner_dir);
+				
+			d1[0].append(x+seg[i][-2:]);
+			print(seg[i]+" "+inner_dir);
+			d1[1].append(y+seg[i][-2:]);
+			d1[2].append(z+seg[i][-2:]);
+			i-=1;
+		print(main_dir);
+		print(str(d1[0]));
+		print(str(d1[1]));
+		print(str(d1[2]));
+		return d1;
+
+	# return the diretion that the segment is moving -x,+x,-y,+y
+	def get_seg_starting_direction(self,seg):
+		h1 = seg[len(seg)-1].split(",");
+		h2 = seg[len(seg)-2].split(",");
+		if int(h2[0]) < int(h1[0]): 
+			return "west";
+		elif int(h2[1]) > int(h1[1]): 
+			return "north";
+		elif int(h2[1]) < int(h1[1]):
+			return "south";
+		return "east";
+
+	# rotate based on segment location in the +x line
+	def rotate_right(self, x, y, z, next_dir):
+		loc1 = x.split(",");
+		loc2 = y.split(",");
+		loc3 = z.split(",");
+		# changes to locations, default east
+		n1=0; n2=1;  #  0,1 
+		s1=0; s2=-1; #  0,-1
+		w1=-1; w2=0; # -1,0
+		# change values added to each location based on direction
+		if next_dir == "north":
+			n1=-1; n2=0; # -1,0 
+			s1=1; s2=0;  #  1,0
+			w1=0; w2=-1; # 0,-1
+		elif next_dir == "south":
+			n1=1; n2=0; 
+			s1=-1; s2=0; 
+			w1=0; w2=1;
+		elif next_dir == "west":
+			n1=0; n2-1; 
+			s1=0; s2=1; 
+			w1=1; w2=0;
+		
+		n = str(int(loc1[0])+n1)+","+str(int(loc1[1])+n2);
+		s = str(int(loc2[0])+s1)+","+str(int(loc2[1])+s2);
+		w = str(int(loc3[0])+w1)+","+str(int(loc3[1])+w2);
+		return n, s, w;
+
+	# rotate based on segment location in the -x line
+	def rotate_left(self, x,y,z, next_dir):
+		loc1 = x.split(",");
+		loc2 = y.split(",");
+		loc3 = z.split(",");
+		# changes to locations, default west
+		n1=0; n2=1; #up
+		s1=0; s2=-1; #down
+		e1=1; e2=0; #right
+		# change values added to each location based on direction
+		if next_dir == "north":
+			n1=1; n2=0; #right
+			s1=-1; s2=0; #left
+			e1=0; e2=-1; #down
+		elif next_dir == "south":
+			n1=-1; n2=0; #left
+			s1=1; s2=0; #right
+			e1=0; e2=1; #up
+		elif next_dir == "east":
+			n1=0; n2=-1; #down
+			s1=0; s2=1;  #up
+			e1=-1; e2=0; #west
+		
+		n = str(int(loc1[0])+n1)+","+str(int(loc1[1])+n2);
+		s = str(int(loc2[0])+s1)+","+str(int(loc2[1])+s2);
+		e = str(int(loc3[0])+e1)+","+str(int(loc3[1])+e2);
+		return n, s, e;
+
+	# rotate based on segment location in the +y line
+	def rotate_up(self, x,y,z, next_dir):
+		loc1 = x.split(",");
+		loc2 = y.split(",");
+		loc3 = z.split(",");
+		# changes to locations, default north
+		e1=1; e2=0; 
+		w1=-1; w2=0; 
+		s1=0; s2=-1;
+		# change values added to each location based on direction
+		if next_dir == "east":
+			e1=0; e2=-1; 
+			w1=0; w2=1; 
+			s1=-1; s2=0;
+		elif next_dir == "south":
+			e1=-1; e2=0; 
+			w1=1; w2=0; 
+			s1=0; s2=1;
+		elif next_dir == "west":
+			e1=0; e2=1; 
+			w1=0; w2=-1; 
+			s1=1; s2=0;
+		
+		e = str(int(loc1[0])+e1)+","+str(int(loc1[1])+e2);
+		s = str(int(loc2[0])+w1)+","+str(int(loc2[1])+w2);
+		w = str(int(loc3[0])+s1)+","+str(int(loc3[1])+s2);
+		return e, s, w;
+
+	# rotate based on segment location in the -y line
+	def rotate_down(self, x,y,z, next_dir):
+		loc1 = x.split(",");
+		loc2 = y.split(",");
+		loc3 = z.split(",");
+		# changes to locations, default south
+		e1=1; e2=0; 
+		n1=0; n2=1; 
+		w1=-1; w2=0;
+		# change values added to each location based on direction
+		if next_dir == "east":
+			e1=0; e2=1; 
+			n1=-1; n2=0; 
+			w1=0; w2=-1;
+		elif next_dir == "north":
+			e1=-1; e2=0; 
+			n1=0; n2=-1; 
+			w1=1; w2=0;
+		elif next_dir == "west":
+			e1=0; e2=-1; 
+			n1=1; n2=0; 
+			w1=0; w2=1;
+		
+		e = str(int(loc1[0])+e1)+","+str(int(loc1[1])+e2);
+		n = str(int(loc2[0])+n1)+","+str(int(loc2[1])+n2);
+		w = str(int(loc3[0])+w1)+","+str(int(loc3[1])+w2);
+		return e, n, w;
 
 	# find the distance to move each x,y in seg based on a starting position
 	def find_seg_body_distance(self, seg, start):
 		# Find the difference in x coord locations from seg to body as var x
-		Ax = int(seg[len(seg)-1][0]);
-		Bx = int(start[0]);
-		x = Ax - Bx;
+		arr = seg[len(seg)-1].split(",");
+		arr2 = start.split(",");
+		Ax = int(arr[0]);
+		Bx = int(arr2[0]);
+		x = Bx - Ax;
 		# Find the difference in y coord locations from seg to body as var y
-		Ay = int(seg[len(seg)-1][2]);
-		By = int(start[2]);
-		y = Ay - By;
+		Ay = int(arr[1]);
+		By = int(arr2[1]);
+		y = By - Ay;
 		return x,y;
 		
 	# change the locations of a list segment by a distance x,y
@@ -456,7 +642,8 @@ class fitness_generator:
 	def set_seg_locations(self, seg, x, y):
 		for i in range(len(seg)):
 			arr = seg[i].split(",");
-			seg[i] = str(int(arr[0])+x)+","+str(int(arr[1]+y)) + ","+ seg[i][-1:];
+			seg[i] = str(int(arr[0])+x)+","+str(int(arr[1])+y) + ","+ seg[i][-1:];
+		return seg;
 
 	# check if a segment's elements locations overlap the static body
 	# return true if compatible
@@ -482,14 +669,9 @@ class fitness_generator:
 		for i in range(len(seg)):
 			# change to form: {"0,0":"h"}
 			chromosome[seg[i][:-2]] = seg[i][-1:];
-		for k,v in body.itmes():
+		for k,v in body.items():
 			chromosome[k] = v;
 		return chromosome;
-
-
-	def crossover_mutation(self, top, bottom):
-		pass;
-
 
 
 	# returns a new random direction 1: right, 2: left, 3: up, 4: down
@@ -505,10 +687,10 @@ class fitness_generator:
 			loc = str(int(arr[0])+1)+","+str(arr[1]);
 		elif temp == 2:
 			loc = str(int(arr[0])-1)+","+str(arr[1]);
-		elif temp == 3;
-			loc = str(arr[0])+","+str(int(arr[1]+1));
+		elif temp == 3:
+			loc = str(arr[0])+","+str(int(arr[1])+1);
 		else:
-			loc = str(arr[0])+","+str(int(arr[1]-1));
+			loc = str(arr[0])+","+str(int(arr[1])-1);
 		return loc;
 
 
@@ -575,12 +757,20 @@ class fitness_generator:
 
 
 # should be fitness -9;  Example from slides
-temp = {"0,0":"h", "1,0":"p", "1,1":"h", "1,2":"p", "0,2":"p", "0,1":"h", "-1,1":"h", "-1,2":"p", "-2,2":"h", "-3,2":"p", "-3,1":"p",
+temp1 = {"0,0":"h", "1,0":"p", "1,1":"h", "1,2":"p", "0,2":"p", "0,1":"h", "-1,1":"h", "-1,2":"p", "-2,2":"h", "-3,2":"p", "-3,1":"p",
 			"-2,1":"h", "-2,0":"p", "-1,0":"h", "-1,-1":"h", "-2,-1":"p", "-2,-2":"p", "-1,-2":"h", "0,-2":"p", "0,-1":"h"};
+temp2 = {"0,0":"h", "1,0":"p", "2,0":"h", "2,1":"p", "2,2":"p", "1,2":"h", "1,3":"h", "1,4":"p", "2,4":"h", "3,4":"p", "3,5":"p",
+			"3,6":"h", "3,7":"p", "4,7":"h", "5,7":"h", "6,7":"p", "6,8":"p", "6,9":"h", "6,10":"p", "5,10":"h"};
 
-f = fitness_generator(temp);
+east = ["9,6,h","10,6,h","10,7,h","9,7,h","9,8,h","8,8,h","8,7,h","8,6,h","7,6,h"]
+west = ["5,6,h","4,6,h","4,5,h","5,5,h","5,4,h","6,4,h","6,5,h","6,6,h","7,6,h"]
+north = ["7,8,h","7,9,h","6,9,h","6,8,h","5,8,h","5,7,h","6,7,h","7,7,h","7,6,h"]
+south = ["7,4,h","7,3,h","8,3,h","8,4,h","9,4,h","9,5,h","8,5,h","7,5,h","7,6,h"]
+ew =['2,5,h','3,6,k','4,6,y','5,6,k','4,6,y']
 
-
-
-
-
+f = fitness_generator();
+# f.rotate_seg(east);
+# f.rotate_seg(west);
+# f.rotate_seg(north);
+# f.rotate_seg(south);
+f.rotate_seg(ew);
