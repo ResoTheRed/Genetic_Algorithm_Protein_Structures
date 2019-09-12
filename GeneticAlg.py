@@ -163,8 +163,6 @@ class data_input:
 			if len(temp) == len(seed):
 				temp = {**{"fit":"0"}, **temp }
 				pop.append(temp)
-				#!###########################################################
-				# print("Member:"+str(i+1)+"Random attemps: "+str(tries));
 				self.model.signal_view_controller("data_object")
 				i+=1
 				tries = 0
@@ -290,6 +288,7 @@ class fitness_generator:
 		self.generation = 0
 		self.pop_size =0
 		self.max_fit = 0
+		self.last_fit = 0
 		self.target_fit = 0
 		self.chrom_size = 0
 
@@ -302,6 +301,8 @@ class fitness_generator:
 		self.max_fit = 0
 		self.target_fit = 0
 		self.seed.clear()
+	
+
 
 	# get initial pop in form of list of dictionaries
 	# pop[0] {"fit":"0","0,0":"h","0,1":"p"...}
@@ -321,29 +322,37 @@ class fitness_generator:
 		pass
 
 	def run_generations(self):
+		#counter for stagnant generations
+		plateau = 0
 		# find the fitness of each chromosome
 		self.rank_generation()
 		# Sort fitness from high to low
 		self.sort_generation()
-		for i in range(50):
+		running = True
+		while running:
 			# fill 10% with elite pop 
 			self.elite_selection()
 			# cross over 80% of pop (160)
 			self.crossover_generation()
 			# fill 10+% with random selection
-			self.random_selection();
+			self.random_selection()
 			# set pop1 from pop2
 			self.set_pop1()
 			# rank and sort
 			self.rank_generation()
 			self.sort_generation()
 			self.generation +=1
+			running, plateau = self.check_fitness(plateau)
+
 			#!#################################################################################
-			print("Generation "+str(i+1))
+			print("Generation "+str(self.generation))
 			print("Chromosome length: "+str(self.chrom_size-1))
 			print(str(self.pop_size))
 			self.print_to_console(self.pop1, 4)
 			print()
+		self.max_fit = 0
+		self.generation = 0
+		self.last_fit = 0
 		
 	# push all elements from pop2 to pop1 for next gen processing
 	def set_pop1(self):
@@ -351,6 +360,16 @@ class fitness_generator:
 		for i in range(len(self.pop2)):
 			self.pop1.append(self.pop2[i])
 		self.pop2.clear()
+
+	def check_fitness(self,plateau):
+		if self.max_fit >= self.target_fit and self.target_fit > 0:
+			return False, 0
+		if self.max_fit == self.last_fit:
+			plateau+=1
+			if plateau > 10:
+				return False, 0
+		self.last_fit = self.max_fit
+		return True, plateau
 
 	# rank each chromosome
 	def rank_generation(self):
@@ -429,31 +448,18 @@ class fitness_generator:
 				index+=1 
 		return chrom
 
-	# convert the list merged together by split_chromosome into a dictionary
-	# chrom form: 
-
-	#test method for testing crossover via the console
-	def tester(self, chrom1, chrom2):
-		self.crossover(chrom1, chrom2, 8)
-
-
+	
 	# break each chromosome into parts for crossing over and return the 
 	def crossover(self, chrom1, chrom2,cross_index):
+		# split the chromosomes into two parts
+		# segment is the top half that will rotate
+		# body is the bottome half that is stationary
+		# key is the first node in the body that the segment must adhere to   
 		seg_a, body_a, key_a = self.split_chormosome(chrom1, cross_index)
-		#!#######################################################################
-		# print("seg_a from split_chromosome method:"+str(seg_a))
-		# print("body_a from split_chromosome method:"+str(body_a))
-		# print("key_a from split_chromosome method:"+str(key_a))
 		seg_b, body_b, key_b = self.split_chormosome(chrom2, cross_index)
-		#!#######################################################################
-		# print("seg_b from split_chromosome method:"+str(seg_b))
-		# print("body_b from split_chromosome method:"+str(body_b))
-		# print("key_b from split_chromosome method:"+str(key_b))
+		# atempt to combine the crossovers to create a chromosome
 		chrom1 = self.combine_chrom_segments(seg_a, body_b, key_b)
 		chrom2 = self.combine_chrom_segments(seg_b, body_a, key_a)
-		#!#######################################################################
-		# print("Line 388: crossover is finished. \n"+str(chrom1))
-		# print(str(chrom2))
 		return chrom1, chrom2
 
 	#split a chromosome into 2 pieces
@@ -484,16 +490,10 @@ class fitness_generator:
 		r.shuffle(directions)
 		#start references where the new segment should start from to line up with the correct body
 		start = self.move_rand_loc(key, directions[0])
-		#!################################################################################
-		# print("Line 422:  direction: "+str(directions[0])+" key: "+key+" start"+str(start))
 		# offset to change segment to to fit with given body
 		x,y = self.find_seg_body_distance(seg, start)
-		#!################################################################################
-		# print("Line 426: difference in distances "+str(x)+","+str(y))
 		# update each location in segment by distance in new x,y coord
 		temp_seg = self.set_seg_locations(seg, x, y)
-		#!################################################################################
-		# print("Segment with offset accounted for: "+str(temp_seg))
 		#check if new location overlaps a
 		combined = self.check_overlap(temp_seg, body)
 		if combined:
@@ -507,10 +507,9 @@ class fitness_generator:
 				#set temp to new coordinates 
 				temp_seg = self.set_seg_locations(seg,x,y)
 				#rotate coord 90 degrees right
-				temp_seg_rotate = self.rotate_seg(temp_seg)
+				temp_seg_rotate = self.rotate_seg(temp_seg, key)
 				# check if the new pair can combine without overlap and merge
-				# return the correct segment that works
-				
+				# return the correct segment that works		
 				combined, temp_seg = self.check_overlap_rotation(temp_seg_rotate, body)
 				if combined:
 					merged = self.merge_sections(temp_seg, body)
@@ -528,7 +527,7 @@ class fitness_generator:
 		return combined, []
 
 	# takes in segment list in the form ["0,0,h"...]
-	def rotate_seg(self, seg):	
+	def rotate_seg(self, seg, key):	
 		#home direction to be passed to each rotation degree list
 		x = seg[len(seg)-1]
 		y = x
@@ -565,17 +564,10 @@ class fitness_generator:
 			else:
 				x,y,z = self.rotate_down(x,y,z,inner_dir)
 				
-			d1[0].append(x+seg[i][-2:])
-			#!##################################################
-			# print(seg[i]+" "+inner_dir)
-			d1[1].append(y+seg[i][-2:])
-			d1[2].append(z+seg[i][-2:])
+			d1[0] = [ x+seg[i][-2:] ] + d1[0]
+			d1[1] = [ y+seg[i][-2:] ] + d1[1]
+			d1[2] = [ z+seg[i][-2:] ] + d1[2]
 			i-=1
-		#!##########################################################3
-		# print(main_dir)
-		# print(str(d1[0]))
-		# print(str(d1[1]))
-		# print(str(d1[2]))
 		return d1
 
 	# return the diretion that the segment is moving -x,+x,-y,+y
@@ -721,9 +713,6 @@ class fitness_generator:
 	def set_seg_locations(self, seg, x, y):
 		for i in range(len(seg)):
 			arr = seg[i].split(",")
-			#!############################################################################
-			# print(seg[i])
-			# print(str(arr[0])+" "+(arr[1]))
 			seg[i] = str(int(arr[0])+x)+","+str(int(arr[1])+y) + ","+ seg[i][-1:]
 		return seg
 
@@ -749,12 +738,13 @@ class fitness_generator:
 		chromosome = {}
 		#add fit parameter first;
 		chromosome["fit"] = "0"
-		# always insert segment first
+		# always insert segment first 
 		for i in range(len(seg)):
 			# change to form: {"0,0":"h"}
-			chromosome[seg[i][:-2]] = seg[i][-1:]
+			chromosome[seg[i][:-2]] = "n"#seg[j-i][-1:]
 		for k,v in body.items():
 			chromosome[k] = v
+		
 		return chromosome
 
 
@@ -846,8 +836,9 @@ class fitness_generator:
 # should be fitness -9;  Example from slides
 temp1 = {"0,0":"h", "1,0":"p", "1,1":"h", "1,2":"p", "0,2":"p", "0,1":"h", "-1,1":"h", "-1,2":"p", "-2,2":"h", "-3,2":"p", "-3,1":"p",
 			"-2,1":"h", "-2,0":"p", "-1,0":"h", "-1,-1":"h", "-2,-1":"p", "-2,-2":"p", "-1,-2":"h", "0,-2":"p", "0,-1":"h"}
-temp2 = {"0,0":"h", "1,0":"p", "2,0":"h", "2,1":"p", "2,2":"p", "1,2":"h", "1,3":"h", "1,4":"p", "2,4":"h", "3,4":"p", "3,5":"p",
-			"3,6":"h", "3,7":"p", "4,7":"h", "5,7":"h", "6,7":"p", "6,8":"p", "6,9":"h", "6,10":"p", "5,10":"h"}
+
+temp2 = ["0,0,h", "1,0,p", "2,0,h", "2,1,p", "2,2,p", "1,2,h", "1,3,h", "1,4,p", "2,4,h", "3,4,p", "3,5,p"]
+temp3 = {"3,6":"h", "3,7":"p", "4,7":"h", "5,7":"h", "6,7":"p", "6,8":"p", "6,9":"h", "6,10":"p", "5,10":"h"}
 
 east = ["9,6,h","10,6,h","10,7,h","9,7,h","9,8,h","8,8,h","8,7,h","8,6,h","7,6,h"]
 west = ["5,6,h","4,6,h","4,5,h","5,5,h","5,4,h","6,4,h","6,5,h","6,6,h","7,6,h"]
@@ -855,7 +846,9 @@ north = ["7,8,h","7,9,h","6,9,h","6,8,h","5,8,h","5,7,h","6,7,h","7,7,h","7,6,h"
 south = ["7,4,h","7,3,h","8,3,h","8,4,h","9,4,h","9,5,h","8,5,h","7,5,h","7,6,h"]
 ew =['2,5,h','3,6,k','4,6,y','5,6,k','4,6,y']
 
-# f = fitness_generator();
+f = fitness_generator();
+merge = f.combine_chrom_segments(temp2, temp3, "3,6")
+print(str(merge))
 # f.rotate_seg(east);
 # f.rotate_seg(west);
 # f.rotate_seg(north);
