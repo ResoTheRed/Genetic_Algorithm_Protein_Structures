@@ -45,7 +45,9 @@ class view_controller:
 
 	#returns the dictionary of data for a specific index
 	def get_structure(self, index):
-		index = (index%self.pop_size)+1;
+		index = (index%self.pop_size);
+		if index == 0:
+			index = self.pop_size;
 		#needs exception handling here
 		try:
 			return self.model.data.chromosomes["Seq"+str(index)];

@@ -3,5 +3,5 @@ TotalProtein = 2
 Seq = hphpphhphpphphhpphph
 Fitness = -9
 Seq = hhhpphphph
-Fitness = -10
+Fitness = 0
 
