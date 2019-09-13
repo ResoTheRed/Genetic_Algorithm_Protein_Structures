@@ -17,7 +17,16 @@ class model:
 	def __init__(self):
 		self.data = None
 		self.default_pop_size = 200
+		# form of { "0":{"fit":"9","0,0":"h"...}, ... }
+		self.pinnacle_chromosomes = {}
+		self.current_index = 0
 		
+	# Check if chromosome at index has been found
+	def check_for_struct(self, index):
+		if str(index) in self.pinnacle_chromosomes:
+			return True
+		else:
+			return False
 
 	#ge a reference to the view controller
 	def set_view_controller(self, view_controller):
@@ -52,12 +61,23 @@ class model:
 
 	# collection of methods to call to find the best fitness
 	def find_fitness(self, index):
+		self.current_index = index
 		#pass reference to the targeting fitness level
 		self.fitness.set_target_fitness(self.data.target_fit[index])
 		self.set_init_pop(index)
-		self.fitness.run_generations()
+		# find the best structure by running the algorithm
+		chrom = self.fitness.run_generations()
+		# save the found structure by index
+		self.pinnacle_chromosomes[str(index)] = chrom
 
+	# return the structure of the current chromosome 
+	def get_fit_chrom(self, index):
+		try:
+			return self.pinnacle_chromosomes[str(index)]
+		except KeyError:
+			pass
 
+	# setup initial population
 	def set_init_pop(self, index):
 		if self.data != None:
 			pop = self.data.generate_pop(index, self.default_pop_size)
@@ -95,7 +115,11 @@ class data_input:
 		self.chromosomes = {}
 		self.seeds = list()
 		self.target_fit = list()
-
+	
+	# return the seeds of each chromosome (h & p)
+	def get_seeds(self):
+		return self.seeds
+	
 	# pull the data from the file and return it in a dictionary
 	# Seq1: {"0":"h", "1","p"}
 	# Fitness1: -9
@@ -291,7 +315,7 @@ class fitness_generator:
 		self.last_fit = 0
 		self.target_fit = 0
 		self.chrom_size = 0
-
+		self.termination_value = 10
 	
 	# reset variables for next use
 	def reset(self):
@@ -302,7 +326,9 @@ class fitness_generator:
 		self.target_fit = 0
 		self.seed.clear()
 	
-
+	# return the number of gens it took to find the answer
+	def get_generations(self):
+		return self.generation
 
 	# get initial pop in form of list of dictionaries
 	# pop[0] {"fit":"0","0,0":"h","0,1":"p"...}
@@ -320,8 +346,11 @@ class fitness_generator:
 	# create a given number of sequence randomly generated chromosomes from one seed 
 	def write_initial_pop_to_file(self):
 		pass
-
+	
+	# Run generations until the best/target/plateau fitness is found
+	# return chromosome in the form of {"fit":"9", "9,5":"h"}
 	def run_generations(self):
+		self.generation = 0
 		#counter for stagnant generations
 		plateau = 0
 		# find the fitness of each chromosome
@@ -345,14 +374,15 @@ class fitness_generator:
 			running, plateau = self.check_fitness(plateau)
 
 			#!#################################################################################
-			print("Generation "+str(self.generation))
-			print("Chromosome length: "+str(self.chrom_size-1))
-			print(str(self.pop_size))
-			self.print_to_console(self.pop1, 4)
-			print()
+			# print("Generation "+str(self.generation))
+			# print("Chromosome length: "+str(self.chrom_size-1))
+			# print(str(self.pop_size))
+			# self.print_to_console(self.pop1, 4)
+			# print()
 		self.max_fit = 0
-		self.generation = 0
 		self.last_fit = 0
+		# return the best fit chromosome to the model
+		return self.pop1[0]
 		
 	# push all elements from pop2 to pop1 for next gen processing
 	def set_pop1(self):
@@ -361,13 +391,16 @@ class fitness_generator:
 			self.pop1.append(self.pop2[i])
 		self.pop2.clear()
 
+	# check for termination criteria
 	def check_fitness(self,plateau):
 		if self.max_fit >= self.target_fit and self.target_fit > 0:
 			return False, 0
 		if self.max_fit == self.last_fit:
 			plateau+=1
-			if plateau > 10:
+			if plateau > self.termination_value:
 				return False, 0
+		elif self.max_fit != self.last_fit:
+			plateau = 0
 		self.last_fit = self.max_fit
 		return True, plateau
 
@@ -805,7 +838,6 @@ class fitness_generator:
 				fit += self.match_locations((str(int(arr[0]))+","+str(int(arr[1])-1)), pop, k, count, conn)
 				fit += self.match_locations((str(int(arr[0])-1)+","+str(int(arr[1]))), pop, k, count, conn)
 				fit += self.match_locations((str(int(arr[0])+1)+","+str(int(arr[1]))), pop, k, count, conn)
-				# print("Fit: "+str(fit)+" count: "+str(count))
 			count+=1
 		#return fitness to compare to previous fitness 
 		return int(fit/2)
@@ -815,8 +847,6 @@ class fitness_generator:
 		fitness = 0
 
 		try:
-			#!######################################################################
-			# print("count: "+str(count)+" loc: "+direct+" v at loc: "+pop[direct])
 			# location exist in chromosome and == p
 			if pop[direct] == "h":
 				if count == 0 and connections[count+1] != direct:
@@ -832,7 +862,7 @@ class fitness_generator:
 
 
 
-
+#!#########################################TESTING CODE####################################################
 # should be fitness -9;  Example from slides
 temp1 = {"0,0":"h", "1,0":"p", "1,1":"h", "1,2":"p", "0,2":"p", "0,1":"h", "-1,1":"h", "-1,2":"p", "-2,2":"h", "-3,2":"p", "-3,1":"p",
 			"-2,1":"h", "-2,0":"p", "-1,0":"h", "-1,-1":"h", "-2,-1":"p", "-2,-2":"p", "-1,-2":"h", "0,-2":"p", "0,-1":"h"}
@@ -846,9 +876,8 @@ north = ["7,8,h","7,9,h","6,9,h","6,8,h","5,8,h","5,7,h","6,7,h","7,7,h","7,6,h"
 south = ["7,4,h","7,3,h","8,3,h","8,4,h","9,4,h","9,5,h","8,5,h","7,5,h","7,6,h"]
 ew =['2,5,h','3,6,k','4,6,y','5,6,k','4,6,y']
 
-f = fitness_generator();
-merge = f.combine_chrom_segments(temp2, temp3, "3,6")
-print(str(merge))
+# f = fitness_generator();
+# merge = f.combine_chrom_segments(temp2, temp3, "3,6")
 # f.rotate_seg(east);
 # f.rotate_seg(west);
 # f.rotate_seg(north);
