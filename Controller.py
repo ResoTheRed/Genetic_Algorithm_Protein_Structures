@@ -16,7 +16,8 @@
 		3. Crossover %
 		4. Plateau range
 		5. Population size
-		6. current index 
+		6. mutation %
+		7. current index 
 
 """
 
@@ -29,6 +30,7 @@ class view_controller:
 		self.pop_size = 1
 		self.model.set_view_controller(self)
 		self.display_string = ""
+		self.seeds = []
 
 
 	def set_view(self, view):
@@ -40,6 +42,7 @@ class view_controller:
 	def get_pop_size(self):
 		return self.pop_size
 
+	
 	#invoke data processing logic and set up initial states
 	def load_file(self, file_name):
 		try:
@@ -47,9 +50,30 @@ class view_controller:
 			self.model.setup_data(file_name)
 			# find the number of chromosomes 
 			self.pop_size = self.model.data.pop_size
+			# add reference to the original sequence
+			self.set_seeds(self.model.data.get_seeds())
 			self.setup_variables()
 		except IOError:
 			pass
+	
+	# set values from view, Pass to Model for fitness
+	def set_vars_from_view(self, index, pop, el,r,cs,p,m):
+		self.pop[index-1] = pop
+		self.elite[index-1] = el
+		self.rand[index-1] = r
+		self.crossover[index-1] = cs
+		self.plateau[index-1] = p
+		self.mutate[index-1] = m
+
+	# set up a reference to the original protien sequence given	
+	def set_seeds(self, seeds):
+		# change from: [{"0":h,"1":"p",...},{"0":"p",...}...]
+		# to: ["h","p","h",...]
+		for i in range(len(seeds)):
+			self.seeds.append([])
+			for k,v in seeds[i].items():
+				if k != "fit":
+					self.seeds[i].append(v)
 
 	# create all of the lists that will hold each chromosomes data
 	def setup_variables(self):
@@ -65,7 +89,7 @@ class view_controller:
 		# used to hold the number of nodes in each chromosome
 		self.length = []
 		for i in range(self.pop_size):
-			self.length.append("19")
+			self.length.append(str(len(self.seeds[i])))
 		# used to hold the population size used for alg
 		self.pop = ["1" for i in range(self.pop_size)]
 		# used to hold the % elite picked for each gen of each chromosome
@@ -78,6 +102,8 @@ class view_controller:
 		self.generations = ["1" for i in range(self.pop_size)]
 		# used to hold the platfitness plateau for each chromosome
 		self.plateau = ["10" for i in range(self.pop_size)]
+		# used to hold the percentage of mutation to be done  for each chromosome
+		self.mutate = ["0" for i in range(self.pop_size)]
 		# used to hold all of the protein structures for each chromosome
 		# initially will be the default structure and replaced by the new
 		self.structure = []
@@ -91,27 +117,24 @@ class view_controller:
 	# package data from a series of lists to send to view as a string
 	def display_data_textbox(self, index):
 		string ="Error loading data"
-		dst = 20
 		try:
-			s1 = "~Chromosome Stats~\n"
-			s2 = "Monomers: "+ self.length[index-1]
-			s2 = s2.ljust((dst - len(s2))+len(s2)) 
-			s2 +="Elite: "+ self.elite[index-1]+"\n"
-			s3 = "Fitness: "+ self.found_fitness[index-1]+"/"+self.target_fitness[index-1]
-			s3 = s3.ljust((dst - len(s3))+len(s3))
-			s3 += "Random: "+ self.rand[index-1]+"\n"
-			s4 = "Population: "+self.pop[index-1] 
-			s4 = s4.ljust((dst - len(s4))+len(s4))
-			s4 += "Crossover: " +self.crossover[index-1]+"\n"
-			s5 = "Generation: "+self.generations[index-1]
-			s5 = s5.ljust((dst - len(s5))+len(s5))
-			s5 += "Plateau: "+ self.plateau[index-1]+"\n"
-			s6 = "Chromosome: "+str(index)+" of "+str(self.pop_size)
+			string = "   ~Chromosome Stats~\n"
+			string += "  Monomers:    "+ self.length[index-1]+"\n" 
+			string += "  Population:  "+self.pop[index-1]+"\n" 
+			string += "  Elite%:      "+ self.elite[index-1]+"\n"
+			string += "  Random:      "+ self.rand[index-1]+"\n"
+			string += "  Crossover:   " +self.crossover[index-1]+"\n"
+			string += "  Mutation%:   " +self.mutate[index-1]+"\n"
+			string += "  Plateau:     "+ self.plateau[index-1]+"\n"
+			string += "  Fitness:     "+ self.found_fitness[index-1]+"/"+self.target_fitness[index-1]+"\n"
+			string += "  Generation:  "+self.generations[index-1]+"\n"
+			string += "  Chromosome:  "+str(index)+" of "+str(self.pop_size)
 			# string += "Seq: " + str(self.seeds[index-1])
-			string = s1+s2+s3+s4+s5+s6
+			
 		except IndexError:
 			pass
 		self.display_string = string
+		return string
 
 	def update(self, index):
 		self.display_data_textbox(index)
@@ -133,29 +156,29 @@ class view_controller:
 						temp[k] = v
 				# update generations to reflect run
 				self.generations[index-1] =  str(self.model.fitness.get_generations())
-				self.structure[index-1] = temp  
+				self.structure[index-1] = temp
 		except KeyError:
 			pass
-
-	
+		return self.structure[index-1]
 
 	def loading_signal_from_data(self):
 		pass
 		#self.view.load()
 
+	# run the algorithm to find the fitness
 	def find_fitness(self, index):
 		self.model.find_fitness(index-1)
 
-
-vc = view_controller()
-vc.load_file("input2.txt")
-print("Inside the vc")
-vc.display_data_textbox(1)
-print(vc.display_string)
-print(str(vc.structure[0]))
-vc.find_fitness(1)
-vc.get_structure(1)
-print(str(vc.structure[0]))
-vc.update(1)
-vc.display_data_textbox(1)
-print(vc.display_string)
+#!###########################################TEST CODE####################################
+# vc = view_controller()
+# vc.load_file("input2.txt")
+# print("Inside the vc")
+# vc.display_data_textbox(1)
+# print(vc.display_string)
+# print(str(vc.structure[0]))
+# vc.find_fitness(1)
+# vc.get_structure(1)
+# print(str(vc.structure[0]))
+# vc.update(1)
+# vc.display_data_textbox(1)
+# print(vc.display_string)
