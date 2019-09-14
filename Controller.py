@@ -65,6 +65,8 @@ class view_controller:
 		self.crossover[index-1] = values[4]
 		self.mutate[index-1] = values[5]
 		self.plateau[index-1] = values[6]
+
+	
 		
 
 	# set up a reference to the original protien sequence given	
