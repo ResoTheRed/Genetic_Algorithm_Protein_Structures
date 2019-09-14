@@ -57,13 +57,15 @@ class view_controller:
 			pass
 	
 	# set values from view, Pass to Model for fitness
-	def set_vars_from_view(self, index, pop, el,r,cs,p,m):
-		self.pop[index-1] = pop
-		self.elite[index-1] = el
-		self.rand[index-1] = r
-		self.crossover[index-1] = cs
-		self.plateau[index-1] = p
-		self.mutate[index-1] = m
+	def set_vars_from_view(self, values):
+		index = values[0]
+		self.pop[index-1] = values[1]
+		self.elite[index-1] = values[2]
+		self.rand[index-1] = values[3]
+		self.crossover[index-1] = values[4]
+		self.mutate[index-1] = values[5]
+		self.plateau[index-1] = values[6]
+		
 
 	# set up a reference to the original protien sequence given	
 	def set_seeds(self, seeds):
@@ -93,17 +95,17 @@ class view_controller:
 		# used to hold the population size used for alg
 		self.pop = ["1" for i in range(self.pop_size)]
 		# used to hold the % elite picked for each gen of each chromosome
-		self.elite = ["10" for i in range(self.pop_size)]
+		self.elite = ["0%" for i in range(self.pop_size)]
 		# used to hold the random picked for each gen of each chromosome
-		self.rand = ["10" for i in range(self.pop_size)]
+		self.rand = ["0%" for i in range(self.pop_size)]
 		# used to hold crossover/mutation rate for each chromosome
-		self.crossover = ["80" for i in range(self.pop_size)]
+		self.crossover = ["0%" for i in range(self.pop_size)]
 		# used to hold the number of generations it took to 
 		self.generations = ["1" for i in range(self.pop_size)]
 		# used to hold the platfitness plateau for each chromosome
 		self.plateau = ["10" for i in range(self.pop_size)]
 		# used to hold the percentage of mutation to be done  for each chromosome
-		self.mutate = ["0" for i in range(self.pop_size)]
+		self.mutate = ["0%" for i in range(self.pop_size)]
 		# used to hold all of the protein structures for each chromosome
 		# initially will be the default structure and replaced by the new
 		self.structure = []
@@ -121,7 +123,7 @@ class view_controller:
 			string = "   ~Chromosome Stats~\n"
 			string += "  Monomers:    "+ self.length[index-1]+"\n" 
 			string += "  Population:  "+self.pop[index-1]+"\n" 
-			string += "  Elite%:      "+ self.elite[index-1]+"\n"
+			string += "  Elite:       "+ self.elite[index-1]+"\n"
 			string += "  Random:      "+ self.rand[index-1]+"\n"
 			string += "  Crossover:   " +self.crossover[index-1]+"\n"
 			string += "  Mutation%:   " +self.mutate[index-1]+"\n"
@@ -162,8 +164,7 @@ class view_controller:
 		return self.structure[index-1]
 
 	def loading_signal_from_data(self):
-		pass
-		#self.view.load()
+		self.view.load()
 
 	# run the algorithm to find the fitness
 	def find_fitness(self, index):

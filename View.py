@@ -39,7 +39,7 @@ class view:
 		tk.Label(text="Custom Seq").grid(row=1, column=2, stick='nse')
 		#file name input field
 		self.file_name_entry = Entry(self.master, width=25)
-		self.file_name_entry.insert(0,"Input.txt")
+		self.file_name_entry.insert(0,"input2.txt")
 		self.file_name_entry.grid(row=1,column=1, columnspan=2,padx=10,pady=4,stick='nsw')
 		#custom structure input field
 		self.custom_struct_entry = Entry(self.master, width=68)
@@ -55,8 +55,8 @@ class view:
 	#set up the graphics for the loading bar
 	def setup_loading_bar(self):
 		self.load_text = tk.StringVar()
-		self.load_text.set("Done")
-		tk.Label(self.master, textvariable=self.load_text).grid(row=5,stick='nsew',padx=10,pady=4)
+		self.load_text.set("done")
+		tk.Label(self.master, textvariable=self.load_text).grid(row=5,stick='nsw',padx=18,pady=4)
 		self.loading_bar = Progressbar(self.master, orient=HORIZONTAL, length=self.loading_bar_length, 
 			mode="determinate")
 		self.loading_bar.grid(row=5, column=0, columnspan=2, stick='nse',padx=10,pady=4)
@@ -105,7 +105,7 @@ class view:
 		self.mutateVar.set("20%") 
 		# dropdown choices
 		elite_random = ["10%","5%","15%","20%"]
-		cross = ["80%","60%","70%","90%"]
+		cross = ["80%","60%","65%","70%","75%","80%","90%"]
 		plateau = ["100","10","25","50","200","400","1000","5000","15000"]
 		pop = ["200","50","100","150","350","600","1000","5000"]
 		mutate = ["5%","10%","15%","20%","25%", "30%", "40%", "50%"]
@@ -145,32 +145,31 @@ class view:
 		#update number of chromosomes ref
 		self.chrom_num = self.vc.get_pop_size()
 	
-	#calls to to load in a custom protein structure based on inputs
-	def update_custom_struct(self):
-		return self.custom_struct.get()
-
 	# fill in loading bar based on chunk size
 	def update_loading_bar(self, chunk, loc):
 		self.loading_bar['value'] += chunk
+		self.load_text.set("working...")
 		# print("Load bar total: "+str(self.loading_bar['value']) + " chunk size: "+str(chunk))
 		self.master.update_idletasks()
 
 	# clean the graphics for the loading bar
 	def clear_load_bar(self):
 		self.loading_bar["value"] = 0
+		# self.load_text.set("done")
 		self.master.update_idletasks()
 		
 
 	# increment the loading bar based on population size and finished chromosomes
 	def load(self):
 		if self.load_location == 0:
-			self.load_text.set("Working...")
+			self.load_text.set("working...")
 		self.update_loading_bar(100/self.vc.pop_size,self.load_location)
 		self.load_location += 1
 		if self.load_location >= self.vc.pop_size:
 			self.load_location = 0
+			self.load_text.set("done")
 			self.clear_load_bar()
-			self.load_text.set("Done")
+			
 
 	#set up the canvas that holds the visual for the protien structures
 	def set_canvas(self):
@@ -227,39 +226,90 @@ class view:
 		# write to screen 
 		self.textbox_display(self.display_index)
 
-	def find_fitness(self,):
-		# print("in view: "+str(self.display_index));
+	def find_fitness(self):
+		# set loading text label to working
+		self.load_text.set("working...")
+		self.update_loading_bar(100,"0")
+		# send parameters to the view controller
+		self.vc.set_vars_from_view(self.get_settings())
+		# solve for best fitness
 		self.vc.find_fitness(self.display_index)
+		# update display
+		self.clear_canvas()
+		self.textbox_display(self.display_index)
+		self.load_text.set("done")
+		self.clear_load_bar()
+		
+		
 
 	def write_to_file(self):
 		pass
 
+	def update_custom_struct(self):
+		pass
+
 	#draws a protein structure in the canvas; the structure is a dictionary
 	def draw_protein_structure(self, structure):
+		# set up structure to draw near the center of the canvas
+		structure = self.define_directions(structure)
 		edges = self.draw_location_min_max(structure)
+		
+		# adjust pixel size to fit
+		if edges[4]>edges[5]:
+			div = edges[4]/4
+		else: 
+			div = edges[5]/4
+		if div == 4 or div == 16:
+			div-=1
+		font_size = 9 + int(4/div)
+		pixel = 18 + int(16/div)
+
 		#find center for x,y relative to the protein structure
-		center_x = ( abs( self.canvas_size - (edges[4]*15) ) /2 ) + abs(edges[0]*15)
-		center_y = ( abs( self.canvas_size - (edges[5]*15) ) /2 ) + abs(edges[2]*15)
+		center_x = ( self.canvas_size/2 - (edges[4]*pixel)/2 )
+		center_y = ( self.canvas_size/2 - (edges[5]*pixel)/2 )
 		old_x = center_x
 		old_y = center_y
+		
+		# self.canvas.create_text(self.canvas_size/2,self.canvas_size/2,text='+',font=("Helvetica", 9))
 		#param: x1,y1,x2,y2
 		for k,v in structure.items():
 			nums = k.split(",")
-			x = center_x + (15*int(nums[0]))
-			y = center_y + (15*int(nums[1]))
-			self.canvas.create_text(x,y,text=v,font=("Helvetica", 9))
-			self.canvas.create_line(old_x,old_y,x,y, fill="#a0a0a0", dash=(4,4))
+			x = center_x + int(pixel*int(nums[0]))
+			y = center_y + int(pixel*int(nums[1]))
+				
+			self.canvas.create_text(x,y,text=v,font=("Helvetica", font_size))
+			self.canvas.create_line(old_x,old_y,x,y, fill="#a0a0a0")
 			old_x = x
 			old_y = y
+		
+	def define_directions(self, structure,x_offset=0, y_offset=0):
+		count = 0
+		temp = {}
+		for k,v in structure.items():
+			a = k.split(",")
+			arr=[int(a[0]), int(a[1])]
+			if count==0:
+				x_offset += arr[0]
+				y_offset += arr[1]
+				temp[str(arr[0]-x_offset)+","+str(arr[1]-y_offset)] = v
+			else:
+				temp[str(arr[0]-x_offset)+","+str(arr[1]-y_offset)] = v
+			count+=1
+		return temp
+
 
 	#find locations of proteins to center drawing on screen
 	def draw_location_min_max(self, temp):
-		min_x = 0	
-		min_y = 0
-		max_x = 0
-		max_y = 0
+		print(temp)
+		count=1
 		for k,v in temp.items():
-			nums = k.split(",")
+			nums = k.split(",")		
+			if count ==1:
+				min_x = int(nums[0])	
+				min_y = int(nums[1])
+				max_x = int(nums[0])
+				max_y = int(nums[1])
+		
 			if int(nums[0]) < min_x:
 				min_x = int(nums[0])
 			if int(nums[0])> max_x:
@@ -268,4 +318,6 @@ class view:
 				min_y = int(nums[1])
 			if int(nums[1]) > max_y:
 				max_y = int(nums[1])
-		return [ min_x, max_x, min_y, max_y, (abs(min_x) + abs(max_x)), (abs(min_y) + abs(max_y))]
+			count+=1
+		print(str(min_x)+" "+str(max_x)+" "+str(min_y)+" "+str(max_y)+" "+str(abs(max_x - min_x))+" "+str(abs( max_y-min_y )))
+		return [ min_x, max_x, min_y, max_y, abs(abs(max_x) - abs(min_x)), abs( abs(max_y)-abs(min_y) ) ]
