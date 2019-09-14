@@ -70,6 +70,11 @@ class model:
 		# save the found structure by index
 		self.pinnacle_chromosomes[str(index)] = chrom
 
+	def get_parameters(self, values):
+		# grab the requested pop size from the view
+		self.default_pop_size = int(values[1])
+		self.fitness.set_parameters(values)
+
 	# return the structure of the current chromosome 
 	def get_fit_chrom(self, index):
 		try:
@@ -315,7 +320,6 @@ class fitness_generator:
 		self.last_fit = 0
 		self.target_fit = 0
 		self.chrom_size = 0
-		self.termination_value = 10
 	
 	# reset variables for next use
 	def reset(self):
@@ -342,6 +346,21 @@ class fitness_generator:
 		
 	def set_target_fitness(self, fit):
 		self.target_fit = fit
+
+	def set_parameters(self, values):
+		# the number of chromosomes in each generation
+		self.pop_limit = int(values[1])
+		# how many of the best chromosomes to keep from each gen 
+		self.elite_size  = int( self.pop_limit* (0.01 * int( values[2].replace("%","") ) ) )
+		# the percent of the pop to do crossover on
+		self.crossover_size = int( self.pop_limit* (0.01 * int( values[4].replace("%","") ) ) )
+		# the amount to randomly pick for next generation
+		self.random_size = self.pop_limit - (self.elite_size + self.crossover_size)
+		# the amount to perform mutations to after random selection and crossover
+		self.mutate_size = int( self.pop_limit* (0.01 * int( values[5].replace("%","") ) ) )
+		# the number of generations allowed to pass without the fitness increasing
+		self.plateau_limit = int(values[6])
+		print(self.plateau_limit)
 
 	# create a given number of sequence randomly generated chromosomes from one seed 
 	def write_initial_pop_to_file(self):
@@ -397,7 +416,7 @@ class fitness_generator:
 			return False, 0
 		if self.max_fit == self.last_fit:
 			plateau+=1
-			if plateau > self.termination_value:
+			if plateau > self.plateau_limit:
 				return False, 0
 		elif self.max_fit != self.last_fit:
 			plateau = 0
@@ -435,13 +454,13 @@ class fitness_generator:
 	# direclty copy chromosomes from pop1 to pop2
 	def random_selection(self):	
 		# randomly insert chromosomes
-		while len(self.pop2)<self.pop_size:
+		while len(self.pop2)<self.random_size:
 			ran = r.randint(0,len(self.pop1)-1)
 			self.pop2.append(self.pop1[ran])
 
 	def elite_selection(self):
 		#insert top 10% of chromosomes into pop2
-		for i in range(20):
+		for i in range(self.elite_size):
 			self.pop2.append(self.pop1[i])
 
 	
@@ -449,7 +468,7 @@ class fitness_generator:
 	def crossover_generation(self):
 		i = 0
 		# i reflects each successful crossover count 
-		while i <  160:#int(len(self.pop1)*0.8):
+		while i <  self.crossover_size:#int(len(self.pop1)*0.8):
 			# pull random numbers from 0 to pop length -1 
 			# separate the seg from body, body must be at least 1 element
 			# seg must be atleast 1 element

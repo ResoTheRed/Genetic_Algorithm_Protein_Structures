@@ -105,7 +105,7 @@ class view:
 		self.mutateVar.set("20%") 
 		# dropdown choices
 		elite_random = ["10%","5%","15%","20%"]
-		cross = ["80%","60%","65%","70%","75%","80%","90%"]
+		cross = ["80%","60%","65%","70%","75%","80%","85%","90%"]
 		plateau = ["100","10","25","50","200","400","1000","5000","15000"]
 		pop = ["200","50","100","150","350","600","1000","5000"]
 		mutate = ["5%","10%","15%","20%","25%", "30%", "40%", "50%"]
@@ -149,7 +149,6 @@ class view:
 	def update_loading_bar(self, chunk, loc):
 		self.loading_bar['value'] += chunk
 		self.load_text.set("working...")
-		# print("Load bar total: "+str(self.loading_bar['value']) + " chunk size: "+str(chunk))
 		self.master.update_idletasks()
 
 	# clean the graphics for the loading bar
@@ -254,15 +253,8 @@ class view:
 		structure = self.define_directions(structure)
 		edges = self.draw_location_min_max(structure)
 		
-		# adjust pixel size to fit
-		if edges[4]>edges[5]:
-			div = edges[4]/4
-		else: 
-			div = edges[5]/4
-		if div == 4 or div == 16:
-			div-=1
-		font_size = 9 + int(4/div)
-		pixel = 18 + int(16/div)
+		font_size = 10 
+		pixel = 20 
 
 		#find center for x,y relative to the protein structure
 		center_x = ( self.canvas_size/2 - (edges[4]*pixel)/2 )
@@ -300,7 +292,6 @@ class view:
 
 	#find locations of proteins to center drawing on screen
 	def draw_location_min_max(self, temp):
-		print(temp)
 		count=1
 		for k,v in temp.items():
 			nums = k.split(",")		
@@ -319,5 +310,4 @@ class view:
 			if int(nums[1]) > max_y:
 				max_y = int(nums[1])
 			count+=1
-		print(str(min_x)+" "+str(max_x)+" "+str(min_y)+" "+str(max_y)+" "+str(abs(max_x - min_x))+" "+str(abs( max_y-min_y )))
 		return [ min_x, max_x, min_y, max_y, abs(abs(max_x) - abs(min_x)), abs( abs(max_y)-abs(min_y) ) ]
