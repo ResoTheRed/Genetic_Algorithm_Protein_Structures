@@ -58,6 +58,7 @@ class model:
 		if self.data is None:
 			return
 		self.fitness = fitness_generator()
+		self.fitness.get_model_ref(self)
 
 	# collection of methods to call to find the best fitness
 	def find_fitness(self, index):
@@ -320,6 +321,9 @@ class fitness_generator:
 		self.last_fit = 0
 		self.target_fit = 0
 		self.chrom_size = 0
+
+	def get_model_ref(self, model):
+		self.model = model
 	
 	# reset variables for next use
 	def reset(self):
@@ -360,7 +364,6 @@ class fitness_generator:
 		self.mutate_size = int( self.pop_limit* (0.01 * int( values[5].replace("%","") ) ) )
 		# the number of generations allowed to pass without the fitness increasing
 		self.plateau_limit = int(values[6])
-		print(self.plateau_limit)
 
 	# create a given number of sequence randomly generated chromosomes from one seed 
 	def write_initial_pop_to_file(self):
@@ -384,6 +387,8 @@ class fitness_generator:
 			self.crossover_generation()
 			# fill 10+% with random selection
 			self.random_selection()
+			# mutate chromosomes
+			self.mutate_generation()
 			# set pop1 from pop2
 			self.set_pop1()
 			# rank and sort
@@ -391,6 +396,15 @@ class fitness_generator:
 			self.sort_generation()
 			self.generation +=1
 			running, plateau = self.check_fitness(plateau)
+
+			#!#################################################################################
+			# if self.generation % 1000 == 0:
+			# 	fh = open("Gen_"+str(self.generation),"a+")
+			# 	for i in range(len(self.pop1)):
+			# 		fh.write(str(self.pop1[i])+"\n")
+			if self.generation % 100 ==0:
+				self.model.signal_view_controller("data_object")
+				print("gen "+str(self.generation)+" Max fitness "+str(self.max_fit)+" target fit "+str(self.target_fit))
 
 			#!#################################################################################
 			# print("Generation "+str(self.generation))
@@ -412,10 +426,20 @@ class fitness_generator:
 
 	# check for termination criteria
 	def check_fitness(self,plateau):
-		if self.max_fit >= self.target_fit and self.target_fit > 0:
+		if self.max_fit >= abs(self.target_fit) and self.target_fit < 0:
 			return False, 0
 		if self.max_fit == self.last_fit:
 			plateau+=1
+			#check for stagnant pop
+			if plateau%int(self.plateau_limit/5)==0:
+				stagnant_percent = self.stagnant_pop_check()
+				#!#################################################################################3
+				print("Stagnant percent: "+str(stagnant_percent*100)+"% ")
+				#!#################################################################################3
+				if stagnant_percent == 0.0: 
+					plateau -= plateau/10
+				if stagnant_percent > 0.5:
+					plateau = self.plateau_limit
 			if plateau > self.plateau_limit:
 				return False, 0
 		elif self.max_fit != self.last_fit:
@@ -423,6 +447,25 @@ class fitness_generator:
 		self.last_fit = self.max_fit
 		return True, plateau
 
+	# randomly sample the population for difference in chromosomes
+	# return a percentage of stagnantion from 0.0 to 1.0
+	def stagnant_pop_check(self):
+		sample = r.randint(self.random_size,self.random_size*2)
+		i = 0 
+		stagnant = 0
+		while i < sample+2:
+			c = r.randint(0,len(self.pop1)-1)
+			if i%2==1:
+				temp1 = str(self.pop1[c])
+			else:
+				temp2 = str(self.pop1[c])
+			if i>1:
+				if temp1 == temp2:
+					stagnant+=1
+			i+=1
+		stagnant/=sample
+		return stagnant
+	
 	# rank each chromosome
 	def rank_generation(self):
 		for i in range(len(self.pop1)):
@@ -432,9 +475,7 @@ class fitness_generator:
 			#examine exit fitness levels
 			if fit > self.max_fit:
 				self.max_fit = fit
-			if self.max_fit >= self.target_fit:
-				# exit calculations and move target structure to top
-				pass
+			
 
 	# sort generation from highest to lowest fitness
 	def sort_generation(self):
@@ -786,17 +827,24 @@ class fitness_generator:
 	# merge a compatible segment to a body to make a new chromosome
 	# seg in form: ["0,0,p","0,1,h"...]
 	# body in form: {"0,0":"h","1,0":"p"...}
-	def merge_sections(self, seg, body):
+	def merge_sections(self, seg, body,reverse=0):
 		chromosome = {}
 		#add fit parameter first;
 		chromosome["fit"] = "0"
-		# always insert segment first 
-		for i in range(len(seg)):
-			# change to form: {"0,0":"h"}
-			chromosome[seg[i][:-2]] = "n"#seg[j-i][-1:]
-		for k,v in body.items():
-			chromosome[k] = v
-		
+		if reverse==0:
+			# always insert segment first 
+			for i in range(len(seg)):
+				# change to form: {"0,0":"h"}
+				chromosome[seg[i][:-2]] = "n"#seg[j-i][-1:]
+			for k,v in body.items():
+				chromosome[k] = v
+		else:
+			# segment is on the back side
+			for k,v in body.items():
+				chromosome[k] = v
+			for i in range(len(seg)):
+				# change to form: {"0,0":"h"}
+				chromosome[seg[i][:-2]] = "n"#seg[j-i][-1:]
 		return chromosome
 
 
@@ -821,6 +869,264 @@ class fitness_generator:
 			loc = str(arr[0])+","+str(int(arr[1])-1)
 		return loc
 
+	def mutate_generation(self):
+		success = 0
+		failures = 0
+		mutated = False
+		temp = {}
+		#continue until all are successful or 
+		while success < self.mutate_size and failures < self.plateau_limit:
+			# Pick a random chromosome excluding the elite 
+			try:
+				rand = r.randint(self.elite_size, (self.pop_limit-self.elite_size))-1
+				# Try to mutate the chromosome
+				temp, mutated = self.mutate_chromosome(self.pop2[rand])
+			except IndexError:
+				#!#############################################################################
+				# print("pop2"+str(len(self.pop2))+" random "+str(rand)  )
+				pass
+			if mutated:
+				self.pop2[rand] = temp
+				success+=1
+			else:
+				failures+=1
+
+	# used to bend or alter the given chromosome is some random way 
+	def mutate_chromosome(self, chromo):
+		temp = [2]
+		r.shuffle(temp)
+		m1 = False
+		m2 = False
+		for i in range(temp[0]):
+			if temp[i] == 1:
+				# bend angles in opposite direction randomly
+				chromo, m1 = self.reverse_bends(chromo)
+			else:
+				# re-distribute a segment of a chromosome
+				chromo, m2 = self.bend_shift(chromo)
+		mutated = (m1 or m2)
+		return chromo, mutated
+
+	# change the location of a corner point to the oposite side
+	def reverse_bends(self, chromo):
+		i = 1
+		mutated = False
+		temp = list()
+		temp2 = {}
+		for k,v in chromo.items():
+			if k != "fit":
+				temp.append(k)
+		while i < len(temp)-1:
+			arr = []
+			# 50% chance to try to bending every corner
+			# break 
+			a = temp[i-1].split(",")
+			arr.append([int(a[0]),int(a[1])])
+			a = temp[i].split(",")
+			arr.append([int(a[0]),int(a[1])])
+			a = temp[i+1].split(",")
+			arr.append([int(a[0]),int(a[1])])
+			# check if north&east, east&north
+			ne = arr[0][1]>arr[1][1] and arr[2][0]>arr[1][0]
+			en = arr[0][0]>arr[1][0] and arr[2][1]>arr[1][1]
+			# n&w, w&n 
+			nw = arr[0][1]>arr[1][1] and arr[2][0]<arr[1][0]
+			wn = arr[0][0]<arr[1][0] and arr[2][1]>arr[1][1]
+			# s&e, e&s
+			se = arr[0][1]<arr[1][1] and arr[2][0]>arr[1][0]
+			es = arr[0][0]>arr[1][0] and arr[2][1]<arr[1][1]
+			# s&w
+			sw = arr[0][1]<arr[1][1] and arr[2][0]<arr[1][0]
+			ws = arr[0][0]<arr[1][0] and arr[2][1]<arr[1][1]
+			if ne or en:
+				new_loc = str(arr[1][0]+1)+","+str(arr[1][1]+1)
+				if not new_loc in chromo:
+					# bend northeast (+1,+1)
+					temp[i]=new_loc
+					mutated = True
+			elif  nw or wn:
+				# bend northwest (-1,+1)
+				new_loc = str(arr[1][0]-1)+","+str(arr[1][1]+1)
+				if not new_loc in chromo:
+					temp[i]=new_loc
+					mutated = True
+			elif se or es:
+				# bend southeast (+1,-1)
+				new_loc = str(arr[1][0]+1)+","+str(arr[1][1]-1)
+				if not new_loc in chromo:
+					temp[i]=new_loc
+					mutated = True
+			elif sw or ws:
+				# bend southwest (-1,-1)
+				new_loc = str(arr[1][0]-1)+","+str(arr[1][1]-1)
+				if not new_loc in chromo:
+					temp[i]=new_loc
+					mutated = True
+			i+=1
+		if mutated:
+			count = 0
+			temp2["fit"] ="0"
+			for k,v in chromo.items():
+				if k != "fit":
+					temp2[temp[count]] = v 
+					count+=1
+			chromo = temp2	
+		return chromo, mutated
+	
+	# takes a segment of a chromosome and reconfigures it
+	def bend_shift(self, chromo):
+		start, fin = self.bend_shift_range(chromo)
+		first_loc = "0,0"
+		last_loc = "0,0"
+		temp = list()
+		body = {}
+		chromo.pop("fit",None)
+		for k,v in chromo.items():
+			body[k] = v
+		conn = list()
+		mutated = False
+		count = 0
+		for k,v in chromo.items():
+			# keep track of every element in a list for indexing
+			conn.append(v)
+			# top case
+			if start == 0 and count < fin:
+				temp.append(k+","+v)
+				body.pop(k,None)
+			# bottom case
+			elif start!=0 and count > start:
+				temp.append(k+","+v)
+				body.pop(k,None)
+			# fill in the body half
+			
+			# top case	
+			if count == start and start == 0:
+				first_loc = k
+			elif count == start:
+				first_loc = k
+			# end case
+			if fin == len(chromo)-1:
+				last_loc = k
+			elif count == fin and fin < len(chromo)-1:
+				last_loc = k
+			count +=1
+		if start == 0:
+			loc = last_loc
+		else:
+			loc = first_loc
+
+		temp, mutated = self.bend_shift_directions(temp, chromo, body, loc)
+		# check for success of the mutation
+		if mutated and self.check_overlap(temp,body):
+			chromo.clear()
+			chromo["fit"] = "0"
+			#segment should be in front of the body
+			if start ==0:
+				# chromo = self.merge_sections(temp,body)
+				count = 0
+				if self.check_distance(temp[0],loc):
+					temp.reverse()
+				for i in range(len(temp)):
+					chromo[temp[i][:-2]] = conn[count]
+					count+=1
+				for k,v in body.items():
+					chromo[k] = conn[count]
+					count+=1
+				#!########################################################################
+				# print(str(temp)+str(body))
+			# segment should be in the back
+			else:
+				# chromo = self.merge_sections(temp,body,reverse=1)
+				count = 0
+				for k,v in body.items():
+					chromo[k] = conn[count]
+					count+=1
+				for i in range(len(temp)):
+					chromo[temp[i][:-2]] = conn[count]
+					count+=1
+					#!##########################################################3
+				# print(str(body)+str(temp))
+			# return chromo, True
+			return chromo, mutated
+		# the mutation has failed
+		else:
+			return chromo, False
+
+	# check if two locations are only 1 move away
+	def check_distance(self, loc1, loc2):
+		okay = False
+		a = loc1.split(",")
+		arr1 = [int(a[0]),int(a[1])]
+		a = loc2.split(",")
+		arr2 = [int(a[0]),int(a[1])]
+		distance = abs(arr1[0]-arr2[0])
+		distance += abs(arr1[1]-arr2[1])
+		if distance == 1:
+			okay = True
+		return okay
+
+	def bend_shift_directions(self, temp, chromo, body,loc):
+		prev = loc
+		mutated = False
+		i=0
+		while i < len(temp):
+			arr = temp[i].split(",")
+			#first location as prev
+			q = [1,2,3,4]
+			r.shuffle(q)
+			# try all four directions
+			#TODO: optimize by removing bad directions at the start
+			for j in range(4):
+				new_loc = self.check_direction(q[j],prev)
+				#!########################################################################
+				# print(new_loc+" "+prev)
+				# check if the new arrangement will work
+				if new_loc != prev and not (new_loc in body):
+					temp[i]= new_loc+","+arr[2]
+					mutated = True
+					prev = new_loc
+					break
+				# if j makes it to 3 than no direction was possible
+				# the segment is no good
+				elif j == 3:
+					return temp, False
+			i+=1
+		return temp, mutated
+
+	#return a location based on direction chosen
+	#param prev as a string holds last location ["0,0"] 
+	def check_direction(self, direction, prev):
+		nums = prev.split(",")
+		if direction == 1:#east
+			nums[0] = str(int(nums[0])+1) #East:   +0,+1
+		elif direction == 2:#north
+			nums[1] = str(int(nums[1])+1) #north:  +1,+0
+		elif direction == 3:# west
+			nums[0] = str(int(nums[0])-1) #West:   +0,-1
+		elif direction == 4: #south
+			nums[1] = str(int(nums[1])+1) #south:  -1,+0
+		return (nums[0]+","+nums[1])
+
+	def bend_shift_range(self, chromo):
+		choice = [1,2]
+		r.shuffle(choice)
+		try:
+			# front section
+			if choice[0]==1:
+				start = 0
+				fin = r.randint(2, int(len(chromo)/2))
+			# back section
+			else:
+				start = r.randint( int(len(chromo)/2) ,(int(len(chromo))-2) )
+				fin = int(len(chromo)-1)
+		except ValueError:
+			if choice == 1:
+				start = 0
+				fin = int(len(chromo)/2)
+			else:
+				start = int(len(chromo)/2)
+				fin = (int(len(chromo))-2)
+		return start, fin
 
 	# used for debugging
 	def print_to_console(self, pop, length):
@@ -883,22 +1189,32 @@ class fitness_generator:
 
 #!#########################################TESTING CODE####################################################
 # should be fitness -9;  Example from slides
-temp1 = {"0,0":"h", "1,0":"p", "1,1":"h", "1,2":"p", "0,2":"p", "0,1":"h", "-1,1":"h", "-1,2":"p", "-2,2":"h", "-3,2":"p", "-3,1":"p",
-			"-2,1":"h", "-2,0":"p", "-1,0":"h", "-1,-1":"h", "-2,-1":"p", "-2,-2":"p", "-1,-2":"h", "0,-2":"p", "0,-1":"h"}
+# temp1 = {"fit":"0","0,0":"h", "1,0":"p", "1,1":"h", "1,2":"p", "0,2":"p", "0,1":"h", "-1,1":"h", "-1,2":"p", "-2,2":"h", "-3,2":"p", "-3,1":"p",
+# 			"-2,1":"h", "-2,0":"p", "-1,0":"h", "-1,-1":"h", "-2,-1":"p"}#, "-2,-2":"p", "-1,-2":"h", "0,-2":"p", "0,-1":"h"}
 
-temp2 = ["0,0,h", "1,0,p", "2,0,h", "2,1,p", "2,2,p", "1,2,h", "1,3,h", "1,4,p", "2,4,h", "3,4,p", "3,5,p"]
-temp3 = {"3,6":"h", "3,7":"p", "4,7":"h", "5,7":"h", "6,7":"p", "6,8":"p", "6,9":"h", "6,10":"p", "5,10":"h"}
+# temp2 = ["0,0,h", "1,0,p", "2,0,h", "2,1,p", "2,2,p", "1,2,h", "1,3,h", "1,4,p", "2,4,h", "3,4,p", "3,5,p"]
+# temp3 = {"3,6":"h", "3,7":"p", "4,7":"h", "5,7":"h", "6,7":"p", "6,8":"p", "6,9":"h", "6,10":"p", "5,10":"h"}
 
-east = ["9,6,h","10,6,h","10,7,h","9,7,h","9,8,h","8,8,h","8,7,h","8,6,h","7,6,h"]
-west = ["5,6,h","4,6,h","4,5,h","5,5,h","5,4,h","6,4,h","6,5,h","6,6,h","7,6,h"]
-north = ["7,8,h","7,9,h","6,9,h","6,8,h","5,8,h","5,7,h","6,7,h","7,7,h","7,6,h"]
-south = ["7,4,h","7,3,h","8,3,h","8,4,h","9,4,h","9,5,h","8,5,h","7,5,h","7,6,h"]
-ew =['2,5,h','3,6,k','4,6,y','5,6,k','4,6,y']
+# east = ["9,6,h","10,6,h","10,7,h","9,7,h","9,8,h","8,8,h","8,7,h","8,6,h","7,6,h"]
+# west = ["5,6,h","4,6,h","4,5,h","5,5,h","5,4,h","6,4,h","6,5,h","6,6,h","7,6,h"]
+# north = ["7,8,h","7,9,h","6,9,h","6,8,h","5,8,h","5,7,h","6,7,h","7,7,h","7,6,h"]
+# south = ["7,4,h","7,3,h","8,3,h","8,4,h","9,4,h","9,5,h","8,5,h","7,5,h","7,6,h"]
+# ew =['2,5,h','3,6,k','4,6,y','5,6,k','4,6,y']
 
-# f = fitness_generator();
+# bends = {"0,0":"h","1,0":"h","1,1":"h","2,1":"p","2,0":"h","3,0":"p"}
+
+# f = fitness_generator()
+# print(temp1)
+# temp = f.bend_shift(temp1)
+# print(temp)
+# m = model()
+# m.setup_data("input2.txt")
+# temp4 = m.data.initial_directions(bends)
+# print(str(temp4))
 # merge = f.combine_chrom_segments(temp2, temp3, "3,6")
 # f.rotate_seg(east);
 # f.rotate_seg(west);
 # f.rotate_seg(north);
 # f.rotate_seg(south);
+
 # f.rotate_seg(ew);

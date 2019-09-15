@@ -2,6 +2,11 @@ import tkinter as tk
 from tkinter import *  # Tk, Entry, OptionMenu, Canvas
 from tkinter.ttk import Progressbar
 
+#!############################BUGS###################################################
+#! 1. The each chromosomes generation attribute is overwritten when a process is ran  
+#! 2. display box is not refreshing correctly when the alg is run
+#! 3. can type in the display box: switch to canvas
+#!###################################################################################
 
 class view:
 
