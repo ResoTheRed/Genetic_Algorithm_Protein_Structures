@@ -23,6 +23,7 @@ class view:
 		self.fitness_displays()
 		self.setup_input_display()
 		self.chrom_num = 1
+		self.write_operation = 0
 		tk.mainloop()
 
 	# setting variables for the canvas displays
@@ -44,7 +45,7 @@ class view:
 		tk.Label(text="Custom Seq").grid(row=1, column=2, stick='nse')
 		#file name input field
 		self.file_name_entry = Entry(self.master, width=25)
-		self.file_name_entry.insert(0,"input2.txt")
+		self.file_name_entry.insert(0,"Input.txt")
 		self.file_name_entry.grid(row=1,column=1, columnspan=2,padx=10,pady=4,stick='nsw')
 		#custom structure input field
 		self.custom_struct_entry = Entry(self.master, width=68)
@@ -193,8 +194,8 @@ class view:
 		# clear textbox
 		self.output_display.delete(1.0, END)
 		# get data from the view controller
-		string = self.vc.display_data_textbox(index)
-		self.output_display.insert(tk.END, string)
+		self.display = self.vc.display_data_textbox(index)
+		self.output_display.insert(tk.END, self.display)
 		#draw the structure to lthe canvas
 		temp = self.vc.get_structure(index)
 		self.draw_protein_structure(temp)
@@ -247,7 +248,14 @@ class view:
 		
 
 	def write_to_file(self):
-		pass
+		self.write_operation+=1
+		fh = open("GA_log.txt","a+") 
+		string = "Sequence "+str(self.write_operation)+": "+str(self.vc.get_seed(self.display_index))+"\n"
+		fh.write(string)
+		string = self.display+"\n"
+		fh.write(string)
+		string = str(self.current_structure)+"\n\n"
+		fh.write(string)
 
 	def update_custom_struct(self):
 		pass
@@ -257,7 +265,7 @@ class view:
 		# set up structure to draw near the center of the canvas
 		structure = self.define_directions(structure)
 		edges = self.draw_location_min_max(structure)
-		
+		self.current_structure = structure
 		font_size = 10 
 		pixel = 20 
 

@@ -379,6 +379,8 @@ class fitness_generator:
 		self.rank_generation()
 		# Sort fitness from high to low
 		self.sort_generation()
+		# Oopen a log of the run
+		fh = open("back_log.txt","a+")
 		running = True
 		while running:
 			# fill 10% with elite pop 
@@ -395,17 +397,14 @@ class fitness_generator:
 			self.rank_generation()
 			self.sort_generation()
 			self.generation +=1
-			running, plateau = self.check_fitness(plateau)
+			running, plateau = self.check_fitness(plateau,fh)
 
 			#!#################################################################################
-			# if self.generation % 1000 == 0:
-			# 	fh = open("Gen_"+str(self.generation),"a+")
-			# 	for i in range(len(self.pop1)):
-			# 		fh.write(str(self.pop1[i])+"\n")
-			if self.generation % 100 ==0:
+			if self.generation % 250 ==0:
 				self.model.signal_view_controller("data_object")
-				print("gen "+str(self.generation)+" Max fitness "+str(self.max_fit)+" target fit "+str(self.target_fit))
-
+				string = str("gen "+str(self.generation)+" Max fitness "+str(self.max_fit)+" target fit "+str(self.target_fit))
+				fh.write(string+"\n")
+				print(string)
 			#!#################################################################################
 			# print("Generation "+str(self.generation))
 			# print("Chromosome length: "+str(self.chrom_size-1))
@@ -414,6 +413,7 @@ class fitness_generator:
 			# print()
 		self.max_fit = 0
 		self.last_fit = 0
+		fh.close()
 		# return the best fit chromosome to the model
 		return self.pop1[0]
 		
@@ -425,7 +425,7 @@ class fitness_generator:
 		self.pop2.clear()
 
 	# check for termination criteria
-	def check_fitness(self,plateau):
+	def check_fitness(self,plateau,logger):
 		if self.max_fit >= abs(self.target_fit) and self.target_fit < 0:
 			return False, 0
 		if self.max_fit == self.last_fit:
@@ -434,7 +434,9 @@ class fitness_generator:
 			if plateau%int(self.plateau_limit/5)==0:
 				stagnant_percent = self.stagnant_pop_check()
 				#!#################################################################################3
-				print("Stagnant percent: "+str(stagnant_percent*100)+"% ")
+				string = str("Stagnant percent: "+str(stagnant_percent*100)+"% ")
+				logger.write(string+"\n")
+				print(string)
 				#!#################################################################################3
 				if stagnant_percent == 0.0: 
 					plateau -= plateau/10
@@ -893,7 +895,7 @@ class fitness_generator:
 
 	# used to bend or alter the given chromosome is some random way 
 	def mutate_chromosome(self, chromo):
-		temp = [2]
+		temp = [1,2]
 		r.shuffle(temp)
 		m1 = False
 		m2 = False

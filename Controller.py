@@ -76,6 +76,9 @@ class view_controller:
 			for k,v in seeds[i].items():
 				if k != "fit":
 					self.seeds[i].append(v)
+	
+	def get_seed(self, index):
+		return self.seeds[index-1]
 
 	# create all of the lists that will hold each chromosomes data
 	def setup_variables(self):
